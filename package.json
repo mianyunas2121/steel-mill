@@ -1,0 +1,13 @@
+{
+  "name": "steel-mill-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Steel Mill Management System - Full Stack",
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "db:setup": "cd backend && npx prisma generate && npx prisma db push && npm run db:seed",
+    "setup": "npm run install:all && npm run db:setup"
+  }
+}

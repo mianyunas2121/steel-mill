@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  ACCOUNTANT
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TransactionType {
+  INCOMING
+  OUTGOING
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+}
+
+model User {
+  id           String     @id @default(uuid())
+  name         String
+  email        String     @unique
+  password     String
+  role         Role       @default(STAFF)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  transactions Transaction[]
+}
+
+model Customer {
+  id            String        @id @default(uuid())
+  name          String
+  contactNumber String?
+  email         String?
+  address       String?
+  gstNumber     String?
+  taxId         String?
+  balance       Decimal       @default(0) @db.Decimal(15, 2)
+  isDeleted     Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  transactions  Transaction[]
+  payments      Payment[]
+}
+
+model Transaction {
+  id               String          @id @default(uuid())
+  type             TransactionType
+  customerId       String
+  customer         Customer        @relation(fields: [customerId], references: [id])
+  createdByUserId  String
+  createdBy        User            @relation(fields: [createdByUserId], references: [id])
+  materialType     String
+  weight           Decimal         @db.Decimal(15, 3)
+  pricePerKG       Decimal         @db.Decimal(15, 2)
+  materialAmount   Decimal         @db.Decimal(15, 2)
+  wasteWeight      Decimal         @default(0) @db.Decimal(15, 3)
+  wastePrice       Decimal         @default(0) @db.Decimal(15, 2)
+  wasteAmount      Decimal         @default(0) @db.Decimal(15, 2)
+  takeWaste        Boolean         @default(false)
+  totalBill        Decimal         @db.Decimal(15, 2)
+  notes            String?
+  invoiceNumber    String          @unique
+  invoiceDate      DateTime        @default(now())
+  paymentStatus    PaymentStatus   @default(PENDING)
+  paidAmount       Decimal         @default(0) @db.Decimal(15, 2)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  payments         Payment[]
+
+  @@index([type])
+  @@index([customerId])
+  @@index([invoiceDate])
+  @@index([invoiceNumber])
+}
+
+model Pricing {
+  id           String    @id @default(uuid())
+  materialType String
+  pricePerKG   Decimal   @db.Decimal(15, 2)
+  validFrom    DateTime  @default(now())
+  validTo      DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([materialType])
+}
+
+model Inventory {
+  id           String   @id @default(uuid())
+  materialType String   @unique
+  currentStock Decimal  @default(0) @db.Decimal(15, 3)
+  lastUpdated  DateTime @updatedAt
+  createdAt    DateTime @default(now())
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  amount        Decimal       @db.Decimal(15, 2)
+  paymentDate   DateTime      @default(now())
+  paymentMethod PaymentMethod @default(CASH)
+  invoiceId     String?
+  transaction   Transaction?  @relation(fields: [invoiceId], references: [id])
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  @@index([customerId])
+  @@index([invoiceId])
+}
+
+model Settings {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

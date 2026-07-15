@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+**/.env
+!**/.env.example
+
+# Build / cache
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# Prisma local SQLite (if used)
+**/prisma/*.db
+**/prisma/*.db-journal
+**/prisma/dev.db*
+
+# Uploads & logs
+uploads/
+*.log
+npm-debug.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Misc
+coverage/
+.turbo/
