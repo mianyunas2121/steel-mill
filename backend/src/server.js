@@ -67,17 +67,25 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Health check
 app.get('/api/health', async (req, res) => {
   let database = 'unknown';
+  let databaseError = null;
   try {
     await prisma.$queryRaw`SELECT 1`;
     database = 'connected';
   } catch (err) {
     database = 'error';
-    console.error('Health DB check failed:', err.message);
+    databaseError = {
+      code: err.code || null,
+      message: String(err.message || err).slice(0, 200),
+    };
+    console.error('Health DB check failed:', err);
   }
   res.json({
     success: true,
     message: 'SMMS API is running',
     database,
+    databaseError,
+    hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+    hasJwtSecret: Boolean(process.env.JWT_SECRET),
     timestamp: new Date().toISOString(),
   });
 });
