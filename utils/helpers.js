@@ -27,18 +27,34 @@ export const formatCompactCurrency = (amount) => {
 
 export const formatWeight = (kg) => `${formatNumber(kg, 3)} KG`;
 
-export const calculateOutgoing = ({ weight, pricePerKG, wasteWeight = 0, takeWaste = false }) => {
+export const calculateOutgoing = ({
+  weight,
+  pricePerKG,
+  wasteWeight = 0,
+  wastePricePerKG,
+  takeWaste = false,
+}) => {
   const w = parseFloat(weight) || 0;
   const price = parseFloat(pricePerKG) || 0;
   const waste = parseFloat(wasteWeight) || 0;
+  const wastePrice =
+    wastePricePerKG === undefined || wastePricePerKG === null || wastePricePerKG === ''
+      ? price
+      : parseFloat(wastePricePerKG) || 0;
 
   const materialAmount = Math.round(w * price * 100) / 100;
-  const wasteAmount = Math.round(waste * price * 100) / 100;
+  const wasteAmount = Math.round(waste * wastePrice * 100) / 100;
   const totalBill = takeWaste
     ? Math.round((materialAmount + wasteAmount) * 100) / 100
     : Math.round((materialAmount - wasteAmount) * 100) / 100;
 
-  return { materialAmount, wasteAmount, totalBill, discount: takeWaste ? 0 : wasteAmount };
+  return {
+    materialAmount,
+    wastePrice,
+    wasteAmount,
+    totalBill,
+    discount: takeWaste ? 0 : wasteAmount,
+  };
 };
 
 export const calculateIncoming = ({ weight, pricePerKG }) => {

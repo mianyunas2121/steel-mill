@@ -168,6 +168,7 @@ const createOutgoing = async (req, res) => {
       weight,
       pricePerKG,
       wasteWeight = 0,
+      wastePricePerKG,
       takeWaste = false,
       notes,
       invoiceDate,
@@ -190,7 +191,16 @@ const createOutgoing = async (req, res) => {
       );
     }
 
-    const calc = calculateOutgoing({ weight, pricePerKG, wasteWeight, takeWaste });
+    const calc = calculateOutgoing({
+      weight,
+      pricePerKG,
+      wasteWeight,
+      wastePricePerKG:
+        wastePricePerKG === undefined || wastePricePerKG === null
+          ? pricePerKG
+          : wastePricePerKG,
+      takeWaste,
+    });
     const invoiceNumber = await generateInvoiceNumber(
       invoiceDate ? new Date(invoiceDate) : new Date()
     );
@@ -251,7 +261,7 @@ const createOutgoing = async (req, res) => {
           <p>Material: ${materialType}</p>
           <p>Weight: ${weight} KG @ PKR ${pricePerKG}/KG</p>
           <p>Material Amount: PKR ${calc.materialAmount}</p>
-          ${wasteWeight > 0 ? `<p>Waste: ${wasteWeight} KG (PKR ${calc.wasteAmount})</p>` : ''}
+          ${wasteWeight > 0 ? `<p>Waste: ${wasteWeight} KG @ PKR ${calc.wastePrice}/KG (PKR ${calc.wasteAmount})</p>` : ''}
           ${discountNote}
           <p><strong>Total Bill: PKR ${calc.totalBill}</strong></p>
           <p>Thank you for your business!</p>

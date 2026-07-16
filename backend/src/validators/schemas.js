@@ -41,6 +41,7 @@ const outgoingSchema = Joi.object({
   weight: Joi.number().positive().required(),
   pricePerKG: Joi.number().positive().required(),
   wasteWeight: Joi.number().min(0).default(0),
+  wastePricePerKG: Joi.number().min(0).default(0),
   takeWaste: Joi.boolean().default(false),
   notes: Joi.string().allow('', null),
   invoiceDate: Joi.date().optional(),

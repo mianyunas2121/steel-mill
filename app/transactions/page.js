@@ -44,6 +44,7 @@ export default function TransactionsPage() {
     defaultValues: {
       takeWaste: 'false',
       wasteWeight: 0,
+      wastePricePerKG: '',
       invoiceDate: format(new Date(), 'yyyy-MM-dd'),
     },
   });
@@ -52,6 +53,7 @@ export default function TransactionsPage() {
   const watchWeight = watch('weight');
   const watchPrice = watch('pricePerKG');
   const watchWaste = watch('wasteWeight');
+  const watchWastePrice = watch('wastePricePerKG');
   const watchTakeWaste = watch('takeWaste');
 
   const calc = useMemo(() => {
@@ -60,11 +62,12 @@ export default function TransactionsPage() {
         weight: watchWeight,
         pricePerKG: watchPrice,
         wasteWeight: watchWaste,
+        wastePricePerKG: watchWastePrice,
         takeWaste: watchTakeWaste === 'true',
       });
     }
     return calculateIncoming({ weight: watchWeight, pricePerKG: watchPrice });
-  }, [modal, watchWeight, watchPrice, watchWaste, watchTakeWaste]);
+  }, [modal, watchWeight, watchPrice, watchWaste, watchWastePrice, watchTakeWaste]);
 
   const loadData = async () => {
     try {
@@ -92,17 +95,23 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (watchMaterial && pricing.length) {
       const p = pricing.find((x) => x.materialType === watchMaterial);
-      if (p) setValue('pricePerKG', p.pricePerKG);
+      if (p) {
+        setValue('pricePerKG', p.pricePerKG);
+        // Default waste price to material price; user can change it
+        setValue('wastePricePerKG', p.pricePerKG);
+      }
     }
   }, [watchMaterial, pricing, setValue]);
 
   const openModal = (type) => {
+    const defaultPrice = pricing[0]?.pricePerKG || '';
     reset({
       takeWaste: 'false',
       wasteWeight: 0,
+      wastePricePerKG: defaultPrice,
       invoiceDate: format(new Date(), 'yyyy-MM-dd'),
       materialType: pricing[0]?.materialType || 'Steel',
-      pricePerKG: pricing[0]?.pricePerKG || '',
+      pricePerKG: defaultPrice,
     });
     setModal(type);
   };
@@ -124,6 +133,10 @@ export default function TransactionsPage() {
         res = await createIncoming(payload);
       } else {
         payload.wasteWeight = parseFloat(data.wasteWeight) || 0;
+        payload.wastePricePerKG =
+          data.wastePricePerKG === '' || data.wastePricePerKG === undefined
+            ? parseFloat(data.pricePerKG)
+            : parseFloat(data.wastePricePerKG);
         payload.takeWaste = data.takeWaste === 'true';
         res = await createOutgoing(payload);
       }
@@ -299,15 +312,32 @@ export default function TransactionsPage() {
               />
             </div>
             {modal === 'outgoing' && (
-              <div>
-                <label className="label">Waste Weight (KG)</label>
-                <input
-                  type="number"
-                  step="0.001"
-                  className="input"
-                  {...register('wasteWeight', { min: 0 })}
-                />
-              </div>
+              <>
+                <div>
+                  <label className="label">Waste Weight (KG)</label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    className="input"
+                    {...register('wasteWeight', { min: 0 })}
+                  />
+                </div>
+                <div>
+                  <label className="label">Waste Price per KG (PKR)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input"
+                    placeholder="Enter waste rate"
+                    {...register('wastePricePerKG', {
+                      min: { value: 0, message: 'Cannot be negative' },
+                    })}
+                  />
+                  <p className="text-[11px] text-steel-400 mt-1">
+                    wasteAmount = waste weight × waste price/KG
+                  </p>
+                </div>
+              </>
             )}
           </div>
 
@@ -317,11 +347,11 @@ export default function TransactionsPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <label className="flex items-center gap-2 cursor-pointer p-3 bg-white rounded-lg border border-steel-200 flex-1 has-[:checked]:border-accent has-[:checked]:ring-1 has-[:checked]:ring-accent">
                   <input type="radio" value="true" {...register('takeWaste')} className="accent-accent" />
-                  <span className="text-sm">Customer takes waste</span>
+                  <span className="text-sm">With waste (add to total)</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer p-3 bg-white rounded-lg border border-steel-200 flex-1 has-[:checked]:border-accent has-[:checked]:ring-1 has-[:checked]:ring-accent">
                   <input type="radio" value="false" {...register('takeWaste')} className="accent-accent" />
-                  <span className="text-sm">Customer doesn&apos;t take waste</span>
+                  <span className="text-sm">Without waste (minus from total)</span>
                 </label>
               </div>
             </div>
@@ -342,6 +372,9 @@ export default function TransactionsPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-steel-300">
                   {watchTakeWaste === 'true' ? 'Waste Charge' : 'Waste Discount'}
+                  {watchWaste > 0 && watchWastePrice !== '' && watchWastePrice !== undefined
+                    ? ` (${watchWaste} KG × ${watchWastePrice})`
+                    : ''}
                 </span>
                 <span className={watchTakeWaste === 'true' ? '' : 'text-emerald-400'}>
                   {watchTakeWaste === 'true' ? '+' : '-'}

@@ -25,16 +25,27 @@ const generateInvoiceNumber = async (date = new Date()) => {
 
 /**
  * OUTGOING calculation:
+ * - wasteAmount = wasteWeight × wastePricePerKG
  * - takeWaste=true  => totalBill = materialAmount + wasteAmount
  * - takeWaste=false => totalBill = materialAmount - wasteAmount (discount)
  */
-const calculateOutgoing = ({ weight, pricePerKG, wasteWeight = 0, takeWaste = false }) => {
+const calculateOutgoing = ({
+  weight,
+  pricePerKG,
+  wasteWeight = 0,
+  wastePricePerKG,
+  takeWaste = false,
+}) => {
   const w = parseFloat(weight) || 0;
   const price = parseFloat(pricePerKG) || 0;
   const waste = parseFloat(wasteWeight) || 0;
+  // Prefer explicit waste price; fall back to material price if not provided
+  const wastePrice =
+    wastePricePerKG === undefined || wastePricePerKG === null || wastePricePerKG === ''
+      ? price
+      : parseFloat(wastePricePerKG) || 0;
 
   const materialAmount = round2(w * price);
-  const wastePrice = price; // same as pricePerKG per business rules
   const wasteAmount = round2(waste * wastePrice);
 
   let totalBill;
