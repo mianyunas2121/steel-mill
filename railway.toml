@@ -1,0 +1,20 @@
+# Railway config at repo root — deploy API without setting Root Directory manually
+# New Project → Deploy from GitHub → select steel-mill → add variables → Deploy
+#
+# Required variables:
+#   DATABASE_URL     = Neon connection string
+#   JWT_SECRET       = long random string
+#   FRONTEND_URL     = https://steel-mill.vercel.app
+#   NODE_ENV         = production
+#   JWT_EXPIRES_IN   = 7d  (optional)
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "cd backend && npm install && npx prisma generate"
+
+[deploy]
+startCommand = "cd backend && npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

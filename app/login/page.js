@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [toast, setToast] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [hostTip, setHostTip] = useState(null);
 
   const {
     register,
@@ -25,6 +26,15 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window === 'undefined') return;
+    const host = window.location.hostname;
+    if (host.includes('vercel.app')) {
+      setHostTip('vercel');
+    } else if (host === 'localhost' || host === '127.0.0.1') {
+      setHostTip('localhost');
+    } else if (/^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) {
+      setHostTip('lan');
+    }
   }, []);
 
   useEffect(() => {
@@ -126,6 +136,31 @@ export default function LoginPage() {
           <div className="card p-6 sm:p-7">
             <h2 className="text-xl font-semibold text-ink tracking-tight mb-1">Sign in</h2>
             <p className="text-ink-subtle text-sm mb-6">Enter your staff credentials to continue</p>
+
+            {hostTip === 'vercel' && (
+              <div className="mb-5 p-3 rounded-md border border-status-warning bg-status-warningBg text-xs text-status-warning leading-relaxed">
+                <p className="font-semibold mb-1">This Vercel site has no live backend yet</p>
+                <p>
+                  On your phone, do <strong>not</strong> use this link. Open your laptop&apos;s Wi‑Fi address instead
+                  (same Wi‑Fi): <span className="tabular-nums font-semibold">http://192.168.1.164:3000</span>
+                </p>
+              </div>
+            )}
+            {hostTip === 'localhost' && (
+              <div className="mb-5 p-3 rounded-md border border-line bg-surface text-xs text-ink-muted leading-relaxed">
+                <p className="font-semibold text-ink mb-1">Phone login (same Wi‑Fi)</p>
+                <p>
+                  On mobile open{' '}
+                  <span className="tabular-nums font-semibold text-ink">http://192.168.1.164:3000</span> — not the
+                  Vercel URL, and not localhost.
+                </p>
+              </div>
+            )}
+            {hostTip === 'lan' && (
+              <div className="mb-5 p-3 rounded-md border border-status-success bg-status-successBg text-xs text-status-success leading-relaxed">
+                Connected via Wi‑Fi IP — login will use the API on this same PC.
+              </div>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>

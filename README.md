@@ -277,31 +277,33 @@ Env: `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=production`,
 
 ---
 
-### C) Optional: Railway instead of Render
+### C) Deploy backend on Railway (GitHub one-click)
 
-1. Open **[https://railway.app](https://railway.app)** → New Project → **Deploy from GitHub**  
-2. Select **`steel-mill`**  
-3. Set **Root Directory** to `backend`  
-4. Variables:
+1. Open **[https://railway.app/new](https://railway.app/new)**  
+2. Choose **Deploy from GitHub repo**  
+3. Select **`mianyunas2121/steel-mill`** (branch `main`)  
+4. Railway reads root `railway.toml` / `railway.json` and builds the **backend** API  
+5. Open the service → **Variables** → add:
 
 | Name | Value |
 |------|--------|
-| `DATABASE_URL` | Neon URI |
-| `JWT_SECRET` | long random string |
+| `DATABASE_URL` | Your Neon URI (`?sslmode=require`) |
+| `JWT_SECRET` | Long random string |
 | `JWT_EXPIRES_IN` | `7d` |
 | `NODE_ENV` | `production` |
 | `FRONTEND_URL` | `https://steel-mill.vercel.app` |
 
-5. Deploy → copy public HTTPS URL  
-6. Set that URL as `NEXT_PUBLIC_API_URL` on Vercel (same as step B) and redeploy
+6. **Settings** → **Networking** → **Generate Domain** (public HTTPS URL)  
+7. Open `https://YOUR-RAILWAY-DOMAIN/api/health` → should return `"success": true`  
+8. On Vercel set `NEXT_PUBLIC_API_URL` = that Railway URL (no trailing slash) → **Redeploy**
 
-`backend/railway.toml` is already in the repo for build/start/healthcheck.
+`backend/railway.toml` is also included if you prefer Root Directory = `backend`.
 
 ---
 
 ### Notes
 
-- Free Render services **sleep** when idle; first request after sleep can take 30–60s.  
+- Free Render services **sleep** when idle; first request after sleep can take 30–60s. Railway is usually always-on on paid plans.  
 - Never put `DATABASE_URL` or `JWT_SECRET` in Vercel public env (only `NEXT_PUBLIC_API_URL`).  
 - Local laptop Wi‑Fi login still works for development: `http://192.168.x.x:3000`.
 
