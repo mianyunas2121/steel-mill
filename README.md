@@ -179,6 +179,15 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 | Staff | `staff@steelmill.com` | `staff123` |
 | Accountant | `accountant@steelmill.com` | `account123` |
 
+### Test from your phone (same Wi‑Fi)
+
+1. Keep **backend** and **frontend** running on your PC  
+2. Find your PC’s Wi‑Fi IP (Windows: `ipconfig` → IPv4, e.g. `192.168.1.10`)  
+3. On the phone open: `http://YOUR_PC_IP:3000` (not `localhost`)  
+4. Login — the app will call the API at `http://YOUR_PC_IP:5000` automatically  
+
+Allow Node.js through Windows Firewall if the phone can’t connect.
+
 ---
 
 ## Verify Database Is Working

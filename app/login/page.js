@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { login } from '../../utils/api';
+import { login, getApiErrorMessage } from '../../utils/api';
 import { useAuth } from '../../utils/auth';
 import { Factory, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import Toast from '../../components/Toast';
@@ -44,7 +44,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       setToast({
-        message: err.response?.data?.message || 'Login failed',
+        message: getApiErrorMessage(err, 'Login failed'),
         type: 'error',
       });
     } finally {

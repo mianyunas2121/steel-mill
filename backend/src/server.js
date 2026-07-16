@@ -31,9 +31,26 @@ app.use(
         'http://127.0.0.1:3000',
       ].filter(Boolean);
 
+      let hostname = '';
+      try {
+        hostname = new URL(origin).hostname;
+      } catch {
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
+      }
+
+      const isLocalHost =
+        hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+      // Private LAN — needed when testing from a phone on the same Wi‑Fi
+      const isPrivateLan =
+        /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname);
+
       const isAllowed =
         allowed.includes(origin) ||
         /\.vercel\.app$/i.test(origin) ||
+        isLocalHost ||
+        isPrivateLan ||
         process.env.NODE_ENV !== 'production';
 
       if (isAllowed) return callback(null, true);
@@ -76,9 +93,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 SMMS Backend running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 SMMS Backend running on http://0.0.0.0:${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`📱 Phone/LAN: use your PC Wi‑Fi IP, e.g. http://192.168.x.x:${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
 });
 

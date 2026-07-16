@@ -4,9 +4,9 @@
   "private": true,
   "description": "Steel Mill Management System - Next.js frontend (Vercel) + Express API",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0",
     "lint": "next lint",
     "dev:backend": "npm run dev --prefix backend",
     "install:backend": "npm install --prefix backend"

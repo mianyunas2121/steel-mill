@@ -1,7 +1,41 @@
 import axios from 'axios';
 
-const rawUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-const API_URL = rawUrl.replace(/\/$/, '');
+/**
+ * Resolve API base URL for desktop, LAN mobile, and production.
+ * On a phone, "localhost" is the phone itself — so when the page is opened via
+ * a LAN IP (e.g. http://192.168.1.10:3000), we call the API on that same host:5000.
+ */
+function resolveApiUrl() {
+  const configured = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+
+  if (typeof window === 'undefined') {
+    return configured;
+  }
+
+  const pageHost = window.location.hostname;
+  const isLocalPage =
+    pageHost === 'localhost' || pageHost === '127.0.0.1' || pageHost === '[::1]';
+
+  // Production / Vercel / custom domain: always use configured URL
+  if (!isLocalPage && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(configured)) {
+    return configured;
+  }
+
+  // Phone / tablet on same Wi‑Fi: replace localhost with the page hostname
+  if (!isLocalPage) {
+    try {
+      const u = new URL(configured);
+      u.hostname = pageHost;
+      return u.origin;
+    } catch {
+      return `http://${pageHost}:5000`;
+    }
+  }
+
+  return configured;
+}
+
+const API_URL = resolveApiUrl();
 
 const api = axios.create({
   baseURL: `${API_URL}/api`,
@@ -10,6 +44,12 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  // Re-resolve on each request in case hostname differs (SSR vs client)
+  if (typeof window !== 'undefined') {
+    const live = resolveApiUrl();
+    config.baseURL = `${live}/api`;
+  }
+
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('token');
     if (token) {
@@ -33,6 +73,18 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/** Human-readable message for login / network failures */
+export function getApiErrorMessage(err, fallback = 'Request failed') {
+  if (!err) return fallback;
+  if (err.code === 'ECONNABORTED') return 'Request timed out. Check your connection.';
+  if (!err.response) {
+    const host =
+      typeof window !== 'undefined' ? resolveApiUrl() : process.env.NEXT_PUBLIC_API_URL || 'API';
+    return `Cannot reach server (${host}). On mobile, open the app via your PC's Wi‑Fi IP and keep the backend running.`;
+  }
+  return err.response?.data?.message || fallback;
+}
 
 export default api;
 
