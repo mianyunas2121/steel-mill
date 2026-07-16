@@ -313,3 +313,6 @@ The app calls `/api/proxy/...` on Vercel; Vercel forwards to Railway. Phones nev
 ## Summary
 
 SMMS is a complete mill operations app: record incoming/outgoing material with accurate waste billing, keep inventory in sync, manage customers and payments, generate invoices, and run business reports — with role-based access and permanent database storage.
+
+<!-- vercel redeploy trigger 2026-07-16T21:13:47.4649562+05:00 -->
+
