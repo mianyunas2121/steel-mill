@@ -4,6 +4,9 @@ const prisma = require('../config/database');
 const { success, error } = require('../utils/response');
 
 const generateToken = (userId) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
@@ -67,7 +70,13 @@ const login = async (req, res) => {
     return success(res, { user: userData, token }, 'Login successful');
   } catch (err) {
     console.error('Login error:', err);
-    return error(res, 'Login failed');
+    const msg =
+      process.env.NODE_ENV === 'production' && err.message?.includes('JWT_SECRET')
+        ? 'Server misconfigured: JWT_SECRET missing on Railway'
+        : err.message?.includes("Can't reach database") || err.code === 'P1001'
+          ? 'Database unavailable. Check DATABASE_URL on Railway.'
+          : 'Login failed';
+    return error(res, msg);
   }
 };
 

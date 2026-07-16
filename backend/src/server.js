@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const prisma = require('./config/database');
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -64,8 +65,21 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'SMMS API is running', timestamp: new Date().toISOString() });
+app.get('/api/health', async (req, res) => {
+  let database = 'unknown';
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    database = 'connected';
+  } catch (err) {
+    database = 'error';
+    console.error('Health DB check failed:', err.message);
+  }
+  res.json({
+    success: true,
+    message: 'SMMS API is running',
+    database,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // API Routes
