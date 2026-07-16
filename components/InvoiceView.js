@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { formatCurrency, formatWeight } from '../utils/helpers';
 import { format } from 'date-fns';
-import { Printer, Download, X } from 'lucide-react';
+import { Printer, Download, X, Pencil } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
-export default function InvoiceView({ transaction, settings, onClose, onRecordPayment }) {
+export default function InvoiceView({ transaction, settings, onClose, onRecordPayment, onEdit }) {
   const [printing, setPrinting] = useState(false);
 
   if (!transaction) return null;
@@ -55,6 +55,11 @@ export default function InvoiceView({ transaction, settings, onClose, onRecordPa
             <button onClick={handleDownloadPDF} className="btn-outline btn-sm">
               <Download size={14} /> PDF
             </button>
+            {onEdit && (
+              <button onClick={onEdit} className="btn-outline btn-sm">
+                <Pencil size={14} /> Edit
+              </button>
+            )}
             {onRecordPayment && transaction.paymentStatus !== 'PAID' && (
               <button onClick={onRecordPayment} className="btn-primary btn-sm">
                 Record Payment
@@ -176,8 +181,27 @@ export default function InvoiceView({ transaction, settings, onClose, onRecordPa
                   </span>
                 </div>
               )}
+              {transaction.advanceAmount > 0 && (
+                <>
+                  <div className="flex justify-between text-sm border-t border-line pt-2">
+                    <span className="text-ink-subtle">Gross Bill</span>
+                    <span className="tabular-nums">
+                      {formatCurrency(
+                        transaction.grossBill ??
+                          Number(transaction.totalBill) + Number(transaction.advanceAmount || 0)
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-ink-subtle">Advance Received</span>
+                    <span className="tabular-nums text-status-success">
+                      -{formatCurrency(transaction.advanceAmount)}
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between text-base font-semibold border-t border-line pt-2">
-                <span>Total</span>
+                <span>Amount Due</span>
                 <span className="tabular-nums">{formatCurrency(transaction.totalBill)}</span>
               </div>
               {transaction.paidAmount > 0 && (

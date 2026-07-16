@@ -31,6 +31,7 @@ const incomingSchema = Joi.object({
   materialType: Joi.string().required(),
   weight: Joi.number().positive().required(),
   pricePerKG: Joi.number().positive().required(),
+  advanceAmount: Joi.number().min(0).default(0),
   notes: Joi.string().allow('', null),
   invoiceDate: Joi.date().optional(),
 });
@@ -43,9 +44,23 @@ const outgoingSchema = Joi.object({
   wasteWeight: Joi.number().min(0).default(0),
   wastePricePerKG: Joi.number().min(0).default(0),
   takeWaste: Joi.boolean().default(false),
+  advanceAmount: Joi.number().min(0).default(0),
   notes: Joi.string().allow('', null),
   invoiceDate: Joi.date().optional(),
 });
+
+const updateTransactionSchema = Joi.object({
+  customerId: Joi.string().uuid().optional(),
+  materialType: Joi.string().optional(),
+  weight: Joi.number().positive().optional(),
+  pricePerKG: Joi.number().positive().optional(),
+  wasteWeight: Joi.number().min(0).optional(),
+  wastePricePerKG: Joi.number().min(0).optional(),
+  takeWaste: Joi.boolean().optional(),
+  advanceAmount: Joi.number().min(0).optional(),
+  notes: Joi.string().allow('', null),
+  invoiceDate: Joi.date().optional(),
+}).min(1);
 
 const pricingSchema = Joi.object({
   materialType: Joi.string().required(),
@@ -78,6 +93,7 @@ module.exports = {
   customerSchema,
   incomingSchema,
   outgoingSchema,
+  updateTransactionSchema,
   pricingSchema,
   paymentSchema,
   userUpdateSchema,

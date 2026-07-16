@@ -122,6 +122,7 @@ export const getTransactions = (params) => api.get('/transactions', { params });
 export const getTransaction = (id) => api.get(`/transactions/${id}`);
 export const createIncoming = (data) => api.post('/transactions/incoming', data);
 export const createOutgoing = (data) => api.post('/transactions/outgoing', data);
+export const updateTransaction = (id, data) => api.put(`/transactions/${id}`, data);
 export const deleteTransaction = (id) => api.delete(`/transactions/${id}`);
 export const getInvoice = (invoiceNumber) => api.get(`/transactions/invoice/${invoiceNumber}`);
 

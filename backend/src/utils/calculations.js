@@ -26,8 +26,9 @@ const generateInvoiceNumber = async (date = new Date()) => {
 /**
  * OUTGOING calculation:
  * - wasteAmount = wasteWeight × wastePricePerKG
- * - takeWaste=true  => totalBill = materialAmount + wasteAmount
- * - takeWaste=false => totalBill = materialAmount - wasteAmount (discount)
+ * - takeWaste=true  => grossBill = materialAmount + wasteAmount
+ * - takeWaste=false => grossBill = materialAmount - wasteAmount (discount)
+ * - advanceAmount is subtracted from gross → totalBill (amount due)
  */
 const calculateOutgoing = ({
   weight,
@@ -35,11 +36,11 @@ const calculateOutgoing = ({
   wasteWeight = 0,
   wastePricePerKG,
   takeWaste = false,
+  advanceAmount = 0,
 }) => {
   const w = parseFloat(weight) || 0;
   const price = parseFloat(pricePerKG) || 0;
   const waste = parseFloat(wasteWeight) || 0;
-  // Prefer explicit waste price; fall back to material price if not provided
   const wastePrice =
     wastePricePerKG === undefined || wastePricePerKG === null || wastePricePerKG === ''
       ? price
@@ -48,41 +49,60 @@ const calculateOutgoing = ({
   const materialAmount = round2(w * price);
   const wasteAmount = round2(waste * wastePrice);
 
-  let totalBill;
+  let grossBill;
   let discount = 0;
 
   if (takeWaste) {
-    totalBill = round2(materialAmount + wasteAmount);
+    grossBill = round2(materialAmount + wasteAmount);
   } else {
     discount = wasteAmount;
-    totalBill = round2(materialAmount - discount);
+    grossBill = round2(materialAmount - discount);
   }
+
+  const advance = round2(Math.max(0, parseFloat(advanceAmount) || 0));
+  const appliedAdvance = round2(Math.min(advance, Math.max(0, grossBill)));
+  const totalBill = round2(Math.max(0, grossBill - appliedAdvance));
 
   return {
     materialAmount,
     wastePrice,
     wasteAmount,
     discount,
+    grossBill,
+    advanceAmount: appliedAdvance,
     totalBill,
     takeWaste: Boolean(takeWaste),
   };
 };
 
 /**
- * INCOMING calculation: totalAmount = weight × pricePerKG
+ * INCOMING calculation: gross = weight × pricePerKG; advance reduces amount due
  */
-const calculateIncoming = ({ weight, pricePerKG }) => {
+const calculateIncoming = ({ weight, pricePerKG, advanceAmount = 0 }) => {
   const w = parseFloat(weight) || 0;
   const price = parseFloat(pricePerKG) || 0;
-  const totalBill = round2(w * price);
+  const grossBill = round2(w * price);
+  const advance = round2(Math.max(0, parseFloat(advanceAmount) || 0));
+  const appliedAdvance = round2(Math.min(advance, grossBill));
+  const totalBill = round2(Math.max(0, grossBill - appliedAdvance));
   return {
-    materialAmount: totalBill,
+    materialAmount: grossBill,
     wasteWeight: 0,
     wastePrice: 0,
     wasteAmount: 0,
+    grossBill,
+    advanceAmount: appliedAdvance,
     totalBill,
     takeWaste: false,
   };
+};
+
+const paymentStatusFor = (totalBill, paidAmount) => {
+  const total = parseFloat(totalBill) || 0;
+  const paid = parseFloat(paidAmount) || 0;
+  if (total <= 0 || paid >= total) return 'PAID';
+  if (paid > 0) return 'PARTIAL';
+  return 'PENDING';
 };
 
 const round2 = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
@@ -93,6 +113,7 @@ module.exports = {
   generateInvoiceNumber,
   calculateOutgoing,
   calculateIncoming,
+  paymentStatusFor,
   round2,
   toNumber,
 };

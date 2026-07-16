@@ -33,6 +33,7 @@ export const calculateOutgoing = ({
   wasteWeight = 0,
   wastePricePerKG,
   takeWaste = false,
+  advanceAmount = 0,
 }) => {
   const w = parseFloat(weight) || 0;
   const price = parseFloat(pricePerKG) || 0;
@@ -44,22 +45,36 @@ export const calculateOutgoing = ({
 
   const materialAmount = Math.round(w * price * 100) / 100;
   const wasteAmount = Math.round(waste * wastePrice * 100) / 100;
-  const totalBill = takeWaste
+  const grossBill = takeWaste
     ? Math.round((materialAmount + wasteAmount) * 100) / 100
     : Math.round((materialAmount - wasteAmount) * 100) / 100;
+
+  const advance = Math.round(Math.max(0, parseFloat(advanceAmount) || 0) * 100) / 100;
+  const appliedAdvance = Math.round(Math.min(advance, Math.max(0, grossBill)) * 100) / 100;
+  const totalBill = Math.round(Math.max(0, grossBill - appliedAdvance) * 100) / 100;
 
   return {
     materialAmount,
     wastePrice,
     wasteAmount,
+    grossBill,
+    advanceAmount: appliedAdvance,
     totalBill,
     discount: takeWaste ? 0 : wasteAmount,
   };
 };
 
-export const calculateIncoming = ({ weight, pricePerKG }) => {
-  const total = Math.round((parseFloat(weight) || 0) * (parseFloat(pricePerKG) || 0) * 100) / 100;
-  return { materialAmount: total, totalBill: total };
+export const calculateIncoming = ({ weight, pricePerKG, advanceAmount = 0 }) => {
+  const grossBill = Math.round((parseFloat(weight) || 0) * (parseFloat(pricePerKG) || 0) * 100) / 100;
+  const advance = Math.round(Math.max(0, parseFloat(advanceAmount) || 0) * 100) / 100;
+  const appliedAdvance = Math.round(Math.min(advance, grossBill) * 100) / 100;
+  const totalBill = Math.round(Math.max(0, grossBill - appliedAdvance) * 100) / 100;
+  return {
+    materialAmount: grossBill,
+    grossBill,
+    advanceAmount: appliedAdvance,
+    totalBill,
+  };
 };
 
 export const ROLE_LABELS = {

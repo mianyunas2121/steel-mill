@@ -10,13 +10,14 @@ import {
   getTransactions,
   createIncoming,
   createOutgoing,
+  updateTransaction,
   getCustomers,
   getPricing,
   getSettings,
 } from '../../utils/api';
 import { formatCurrency, formatWeight, calculateOutgoing, calculateIncoming } from '../../utils/helpers';
 import { format } from 'date-fns';
-import { Plus, Search, ArrowLeftRight } from 'lucide-react';
+import { Plus, Search, ArrowLeftRight, Pencil } from 'lucide-react';
 import { useAuth } from '../../utils/auth';
 import StatusBadge from '../../components/StatusBadge';
 import EmptyState from '../../components/EmptyState';
@@ -32,6 +33,7 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [modal, setModal] = useState(null); // 'incoming' | 'outgoing'
+  const [editingTx, setEditingTx] = useState(null);
   const [toast, setToast] = useState(null);
   const [selectedTx, setSelectedTx] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -48,6 +50,7 @@ export default function TransactionsPage() {
       takeWaste: 'false',
       wasteWeight: 0,
       wastePricePerKG: '',
+      advanceAmount: 0,
       invoiceDate: format(new Date(), 'yyyy-MM-dd'),
     },
   });
@@ -58,6 +61,7 @@ export default function TransactionsPage() {
   const watchWaste = watch('wasteWeight');
   const watchWastePrice = watch('wastePricePerKG');
   const watchTakeWaste = watch('takeWaste');
+  const watchAdvance = watch('advanceAmount');
 
   const calc = useMemo(() => {
     if (modal === 'outgoing') {
@@ -67,10 +71,15 @@ export default function TransactionsPage() {
         wasteWeight: watchWaste,
         wastePricePerKG: watchWastePrice,
         takeWaste: watchTakeWaste === 'true',
+        advanceAmount: watchAdvance,
       });
     }
-    return calculateIncoming({ weight: watchWeight, pricePerKG: watchPrice });
-  }, [modal, watchWeight, watchPrice, watchWaste, watchWastePrice, watchTakeWaste]);
+    return calculateIncoming({
+      weight: watchWeight,
+      pricePerKG: watchPrice,
+      advanceAmount: watchAdvance,
+    });
+  }, [modal, watchWeight, watchPrice, watchWaste, watchWastePrice, watchTakeWaste, watchAdvance]);
 
   const loadData = async () => {
     try {
@@ -96,27 +105,55 @@ export default function TransactionsPage() {
   }, []);
 
   useEffect(() => {
+    if (editingTx) return;
     if (watchMaterial && pricing.length) {
       const p = pricing.find((x) => x.materialType === watchMaterial);
       if (p) {
         setValue('pricePerKG', p.pricePerKG);
-        // Default waste price to material price; user can change it
         setValue('wastePricePerKG', p.pricePerKG);
       }
     }
-  }, [watchMaterial, pricing, setValue]);
+  }, [watchMaterial, pricing, setValue, editingTx]);
 
   const openModal = (type) => {
     const defaultPrice = pricing[0]?.pricePerKG || '';
+    setEditingTx(null);
     reset({
       takeWaste: 'false',
       wasteWeight: 0,
       wastePricePerKG: defaultPrice,
+      advanceAmount: 0,
       invoiceDate: format(new Date(), 'yyyy-MM-dd'),
       materialType: pricing[0]?.materialType || 'Steel',
       pricePerKG: defaultPrice,
+      customerId: '',
+      notes: '',
     });
     setModal(type);
+  };
+
+  const openEdit = (tx, e) => {
+    e?.stopPropagation();
+    setSelectedTx(null);
+    setEditingTx(tx);
+    reset({
+      customerId: tx.customerId,
+      materialType: tx.materialType,
+      weight: tx.weight,
+      pricePerKG: tx.pricePerKG,
+      wasteWeight: tx.wasteWeight || 0,
+      wastePricePerKG: tx.wastePrice || tx.pricePerKG,
+      takeWaste: tx.takeWaste ? 'true' : 'false',
+      advanceAmount: tx.advanceAmount || 0,
+      notes: tx.notes || '',
+      invoiceDate: format(new Date(tx.invoiceDate), 'yyyy-MM-dd'),
+    });
+    setModal(tx.type === 'INCOMING' ? 'incoming' : 'outgoing');
+  };
+
+  const closeModal = () => {
+    setModal(null);
+    setEditingTx(null);
   };
 
   const onSubmit = async (data) => {
@@ -127,29 +164,35 @@ export default function TransactionsPage() {
         materialType: data.materialType,
         weight: parseFloat(data.weight),
         pricePerKG: parseFloat(data.pricePerKG),
+        advanceAmount: parseFloat(data.advanceAmount) || 0,
         notes: data.notes || null,
         invoiceDate: data.invoiceDate,
       };
 
-      let res;
-      if (modal === 'incoming') {
-        res = await createIncoming(payload);
-      } else {
+      if (modal === 'outgoing') {
         payload.wasteWeight = parseFloat(data.wasteWeight) || 0;
         payload.wastePricePerKG =
           data.wastePricePerKG === '' || data.wastePricePerKG === undefined
             ? parseFloat(data.pricePerKG)
             : parseFloat(data.wastePricePerKG);
         payload.takeWaste = data.takeWaste === 'true';
+      }
+
+      let res;
+      if (editingTx) {
+        res = await updateTransaction(editingTx.id, payload);
+      } else if (modal === 'incoming') {
+        res = await createIncoming(payload);
+      } else {
         res = await createOutgoing(payload);
       }
 
       setToast({ message: res.data.message, type: 'success' });
-      setModal(null);
+      closeModal();
       loadData();
     } catch (err) {
       setToast({
-        message: err.response?.data?.message || 'Failed to create transaction',
+        message: err.response?.data?.message || 'Failed to save transaction',
         type: 'error',
       });
     } finally {
@@ -170,6 +213,13 @@ export default function TransactionsPage() {
     return true;
   });
 
+  const canEdit = hasRole('ADMIN', 'STAFF');
+  const modalTitle = editingTx
+    ? `Edit ${modal === 'incoming' ? 'Incoming' : 'Outgoing'} — ${editingTx.invoiceNumber}`
+    : modal === 'incoming'
+      ? 'Incoming Material'
+      : 'Outgoing Material';
+
   return (
     <AppLayout title="Transactions" subtitle="Incoming & outgoing weighbridge entries">
       <div className="toolbar no-print">
@@ -187,7 +237,7 @@ export default function TransactionsPage() {
           <option value="INCOMING">Incoming</option>
           <option value="OUTGOING">Outgoing</option>
         </select>
-        {hasRole('ADMIN', 'STAFF') && (
+        {canEdit && (
           <>
             <button onClick={() => openModal('incoming')} className="btn-secondary">
               <Plus size={15} /> Incoming
@@ -200,7 +250,7 @@ export default function TransactionsPage() {
       </div>
 
       {loading ? (
-        <TableSkeleton rows={8} cols={8} />
+        <TableSkeleton rows={8} cols={9} />
       ) : filtered.length === 0 ? (
         <div className="card">
           <EmptyState
@@ -220,8 +270,9 @@ export default function TransactionsPage() {
                 <th>Customer</th>
                 <th>Material</th>
                 <th className="num">Weight</th>
-                <th className="num">Total</th>
+                <th className="num">Total Due</th>
                 <th>Status</th>
+                {canEdit && <th className="w-12" />}
               </tr>
             </thead>
             <tbody>
@@ -237,10 +288,29 @@ export default function TransactionsPage() {
                   <td>{t.customer?.name}</td>
                   <td>{t.materialType}</td>
                   <td className="num">{formatWeight(t.weight)}</td>
-                  <td className="num font-semibold text-ink">{formatCurrency(t.totalBill)}</td>
+                  <td className="num font-semibold text-ink">
+                    {formatCurrency(t.totalBill)}
+                    {t.advanceAmount > 0 && (
+                      <span className="block text-2xs font-normal text-ink-subtle">
+                        Adv {formatCurrency(t.advanceAmount)}
+                      </span>
+                    )}
+                  </td>
                   <td>
                     <StatusBadge status={t.paymentStatus} />
                   </td>
+                  {canEdit && (
+                    <td>
+                      <button
+                        type="button"
+                        className="p-1.5 rounded-md hover:bg-surface text-ink-muted hover:text-brand-600"
+                        title="Edit transaction"
+                        onClick={(e) => openEdit(t, e)}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -248,12 +318,7 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      <Modal
-        open={!!modal}
-        onClose={() => setModal(null)}
-        title={modal === 'incoming' ? 'Incoming Material' : 'Outgoing Material'}
-        size="lg"
-      >
+      <Modal open={!!modal} onClose={closeModal} title={modalTitle} size="lg">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -264,10 +329,7 @@ export default function TransactionsPage() {
               <label className="label">
                 {modal === 'incoming' ? 'Supplier / Vendor' : 'Customer'}
               </label>
-              <select
-                className="input"
-                {...register('customerId', { required: 'Required' })}
-              >
+              <select className="input" {...register('customerId', { required: 'Required' })}>
                 <option value="">Select...</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -332,6 +394,18 @@ export default function TransactionsPage() {
                 </div>
               </>
             )}
+            <div>
+              <label className="label">Advance Received (PKR)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="input tabular-nums"
+                placeholder="0"
+                {...register('advanceAmount', { min: { value: 0, message: 'Cannot be negative' } })}
+              />
+              <p className="field-hint">Deducted from the bill total</p>
+            </div>
           </div>
 
           {modal === 'outgoing' && (
@@ -374,8 +448,20 @@ export default function TransactionsPage() {
                 </span>
               </div>
             )}
+            {calc.grossBill !== undefined && (
+              <div className="flex justify-between text-sm border-t border-slate-700 pt-2">
+                <span className="text-slate-400">Gross Bill</span>
+                <span className="tabular-nums">{formatCurrency(calc.grossBill)}</span>
+              </div>
+            )}
+            {calc.advanceAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Advance Received</span>
+                <span className="tabular-nums text-emerald-400">-{formatCurrency(calc.advanceAmount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-base font-semibold border-t border-slate-700 pt-2">
-              <span>Total Bill (PKR)</span>
+              <span>Amount Due (PKR)</span>
               <span className="tabular-nums text-brand-300">{formatCurrency(calc.totalBill)}</span>
             </div>
             {modal === 'outgoing' && watchTakeWaste === 'false' && calc.wasteAmount > 0 && (
@@ -386,11 +472,11 @@ export default function TransactionsPage() {
           </div>
 
           <div className="flex gap-3 justify-end">
-            <button type="button" onClick={() => setModal(null)} className="btn-outline">
+            <button type="button" onClick={closeModal} className="btn-outline">
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="btn-primary">
-              {submitting ? 'Saving...' : 'Submit Transaction'}
+              {submitting ? 'Saving...' : editingTx ? 'Update Transaction' : 'Submit Transaction'}
             </button>
           </div>
         </form>
@@ -401,6 +487,7 @@ export default function TransactionsPage() {
           transaction={selectedTx}
           settings={settings}
           onClose={() => setSelectedTx(null)}
+          onEdit={canEdit ? () => openEdit(selectedTx) : undefined}
         />
       )}
 

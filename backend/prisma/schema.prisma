@@ -79,6 +79,7 @@ model Transaction {
   wastePrice       Decimal         @default(0) @db.Decimal(15, 2)
   wasteAmount      Decimal         @default(0) @db.Decimal(15, 2)
   takeWaste        Boolean         @default(false)
+  advanceAmount    Decimal         @default(0) @db.Decimal(15, 2)
   totalBill        Decimal         @db.Decimal(15, 2)
   notes            String?
   invoiceNumber    String          @unique
