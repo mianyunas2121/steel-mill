@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { login } from '../../utils/api';
@@ -9,11 +9,12 @@ import { Factory, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import Toast from '../../components/Toast';
 
 export default function LoginPage() {
-  const { loginUser, isAuthenticated } = useAuth();
+  const { loginUser, isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const [showPass, setShowPass] = useState(false);
   const [toast, setToast] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const {
     register,
@@ -21,10 +22,15 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm();
 
-  if (isAuthenticated) {
-    router.replace('/dashboard');
-    return null;
-  }
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !loading && isAuthenticated) {
+      router.replace('/dashboard');
+    }
+  }, [mounted, loading, isAuthenticated, router]);
 
   const onSubmit = async (data) => {
     setSubmitting(true);
@@ -33,7 +39,7 @@ export default function LoginPage() {
       if (res.data.success) {
         loginUser(res.data.data.user, res.data.data.token);
         setToast({ message: 'Login successful', type: 'success' });
-        setTimeout(() => router.push('/dashboard'), 400);
+        router.push('/dashboard');
       }
     } catch (err) {
       setToast({
@@ -44,6 +50,14 @@ export default function LoginPage() {
       setSubmitting(false);
     }
   };
+
+  if (!mounted || loading || isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-steel-100">
+        <div className="w-9 h-9 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-steel-100">

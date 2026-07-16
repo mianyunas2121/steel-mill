@@ -1,6 +1,6 @@
 import '../styles/globals.css';
 import { DM_Sans, Libre_Baskerville } from 'next/font/google';
-import { AuthProvider } from '../utils/auth';
+import Providers from '../components/Providers';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -24,7 +24,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${dmSans.variable} ${libreBaskerville.variable}`}>
       <body className={dmSans.className}>
-        <AuthProvider>{children}</AuthProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

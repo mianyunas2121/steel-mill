@@ -1,7 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import api from './api';
 
 const AuthContext = createContext(null);
@@ -9,60 +8,99 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    if (token && savedUser) {
+    let cancelled = false;
+
+    const boot = async () => {
       try {
-        setUser(JSON.parse(savedUser));
-        api
-          .get('/auth/profile')
-          .then((res) => {
-            if (res.data.success) {
-              setUser(res.data.data);
-              localStorage.setItem('user', JSON.stringify(res.data.data));
-            }
-          })
-          .catch(() => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+        if (typeof window === 'undefined') {
+          setLoading(false);
+          return;
+        }
+
+        const token = localStorage.getItem('token');
+        const savedUser = localStorage.getItem('user');
+
+        if (!token || !savedUser) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
+
+        try {
+          if (!cancelled) setUser(JSON.parse(savedUser));
+        } catch {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          if (!cancelled) {
             setUser(null);
-          })
-          .finally(() => setLoading(false));
+            setLoading(false);
+          }
+          return;
+        }
+
+        try {
+          const res = await api.get('/auth/profile');
+          if (!cancelled && res.data?.success) {
+            setUser(res.data.data);
+            localStorage.setItem('user', JSON.stringify(res.data.data));
+          }
+        } catch {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          if (!cancelled) setUser(null);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
       } catch {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    } else {
-      setLoading(false);
-    }
+    };
+
+    boot();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const loginUser = (userData, token) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    router.push('/login');
-  };
-
-  const hasRole = (...roles) => user && roles.includes(user.role);
-
-  return (
-    <AuthContext.Provider value={{ user, loading, loginUser, logout, hasRole, isAuthenticated: !!user }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      isAuthenticated: !!user,
+      loginUser: (userData, token) => {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+      },
+      logout: () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+      },
+      hasRole: (...roles) => !!user && roles.includes(user.role),
+    }),
+    [user, loading]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export const useAuth = () => {
+export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) {
+    // Safe fallback during static generation edge-cases
+    return {
+      user: null,
+      loading: true,
+      isAuthenticated: false,
+      loginUser: () => {},
+      logout: () => {},
+      hasRole: () => false,
+    };
+  }
   return ctx;
-};
+}

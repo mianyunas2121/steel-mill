@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../utils/auth';
 import Sidebar from './Sidebar';
@@ -8,14 +8,19 @@ import Sidebar from './Sidebar';
 export default function AppLayout({ children, title, subtitle }) {
   const { user, loading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !loading && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [loading, isAuthenticated, router]);
+  }, [mounted, loading, isAuthenticated, router]);
 
-  if (loading) {
+  if (!mounted || loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-steel-100">
         <div className="flex flex-col items-center gap-3">
@@ -25,8 +30,6 @@ export default function AppLayout({ children, title, subtitle }) {
       </div>
     );
   }
-
-  if (!user) return null;
 
   return (
     <div className="flex min-h-screen bg-steel-100">
