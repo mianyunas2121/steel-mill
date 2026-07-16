@@ -160,11 +160,16 @@ API: **http://localhost:5000**
 
 ### Frontend
 ```bash
-cd frontend
+# from repo root (Next.js app is at root for Vercel)
 npm install
 npm run dev
 ```
 App: **http://localhost:3000**
+
+Set API URL in `.env.local`:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000
+```
 
 ### Demo logins
 
@@ -191,13 +196,13 @@ Or create a transaction in the UI, restart the backend, and confirm the same inv
 
 ```
 steel-mill-app/
-├── frontend/          # Next.js UI (pages, components, charts)
-├── backend/           # Express API + Prisma
-│   ├── prisma/        # Schema + SQLite file (dev.db)
-│   ├── src/           # Routes, controllers, middleware
-│   └── scripts/       # DB verification helpers
-├── database/          # PostgreSQL SQL schema (reference)
-├── docker-compose.yml # Optional Postgres via Docker
+├── app/               # Next.js App Router pages
+├── components/        # UI components
+├── utils/             # API client, auth, helpers
+├── styles/            # Global CSS / Tailwind
+├── backend/           # Express API + Prisma + Neon
+├── database/          # SQL reference schema
+├── vercel.json        # Vercel config
 └── README.md
 ```
 
@@ -205,9 +210,29 @@ steel-mill-app/
 
 ## Deployment Notes
 
-- **Frontend:** Vercel — set `NEXT_PUBLIC_API_URL` to your API URL  
-- **Backend:** Railway / Render — set env vars from `backend/.env.example`  
-- **Database:** Managed PostgreSQL; switch Prisma schema to `schema.postgresql.prisma`
+### Frontend (Vercel)
+
+1. Import the GitHub repo on Vercel  
+2. **Root Directory:** leave as **repository root** (Next.js is at root now — do **not** set `frontend`)  
+3. Framework: **Next.js** (auto)  
+4. Environment variable:
+
+| Name | Value |
+|------|--------|
+| `NEXT_PUBLIC_API_URL` | Your live backend URL, e.g. `https://your-api.onrender.com` |
+
+5. Deploy
+
+### Backend (Railway / Render)
+
+- Root / start: `backend`  
+- Env: copy from `backend/.env.example`  
+- Must set `DATABASE_URL` (Neon) and `FRONTEND_URL` (your Vercel URL)  
+- Start: `npm start` or `node src/server.js`
+
+### Database
+
+- Neon PostgreSQL via `DATABASE_URL` in backend `.env`
 
 ---
 

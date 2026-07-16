@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 node_modules/
 **/node_modules/
 
@@ -8,15 +8,18 @@ node_modules/
 .env.*.local
 **/.env
 !**/.env.example
+!backend/.env.example
 
-# Build / cache
+# Next.js
 .next/
 out/
+
+# Build
 build/
 dist/
 *.tsbuildinfo
 
-# Prisma local SQLite (if used)
+# Prisma local
 **/prisma/*.db
 **/prisma/*.db-journal
 **/prisma/dev.db*
@@ -32,7 +35,9 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+.vercel
 
 # Misc
 coverage/
 .turbo/
+frontend/
