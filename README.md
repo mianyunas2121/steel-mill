@@ -258,22 +258,19 @@ Env: `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=production`,
 ### B) Point Vercel frontend at the live API
 
 1. Open **[https://vercel.com/dashboard](https://vercel.com/dashboard)**  
-2. Open project **steel-mill** (your Next.js app)  
+2. Open project **steel-mill**  
 3. Go to **Settings** → **Environment Variables**  
-4. Add / edit:
+4. Add / edit these (Production + Preview):
 
-| Name | Value | Environments |
-|------|--------|----------------|
-| `NEXT_PUBLIC_API_URL` | `https://smms-api.onrender.com` | Production, Preview, Development |
+| Name | Value | Notes |
+|------|--------|--------|
+| `API_URL` | `https://YOUR-RAILWAY-DOMAIN.up.railway.app` | **Required for phones** — no trailing slash. Server-side proxy uses this. |
+| `NEXT_PUBLIC_API_URL` | same Railway URL | Optional backup; do **not** use `localhost` |
 
-   (Use **your** real Render URL — no trailing slash)
+5. Go to **Deployments** → latest → **⋯** → **Redeploy**  
+6. After deploy, any phone can open **https://steel-mill.vercel.app** and log in.
 
-5. Go to **Deployments** → open the latest → **⋯** → **Redeploy**  
-   (Required so `NEXT_PUBLIC_API_URL` is baked into the build)
-
-6. After deploy finishes, open on any phone:  
-   **https://steel-mill.vercel.app**  
-   Login: `admin@steelmill.com` / `admin123`
+The app calls `/api/proxy/...` on Vercel; Vercel forwards to Railway. Phones never need `localhost`.
 
 ---
 

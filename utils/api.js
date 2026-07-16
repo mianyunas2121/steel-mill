@@ -17,43 +17,42 @@ function isLocalApiUrl(url) {
 }
 
 /**
- * Resolve API base URL.
- * - Local / Vercel: use NEXT_PUBLIC_API_URL as-is (default http://localhost:5000)
- * - Phone on Wi‑Fi via LAN IP only: rewrite localhost → that IP so the phone hits the PC
- * Never rewrite production hosts like *.vercel.app
+ * Client API base:
+ * - Vercel / public domain → same-origin `/api/proxy` (server forwards to Railway via API_URL)
+ * - LAN IP phone → PC IP:5000
+ * - localhost → NEXT_PUBLIC_API_URL / localhost:5000
  */
-function resolveApiUrl() {
+function resolveClientApiBase() {
   const configured = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
   if (typeof window === 'undefined') {
-    return configured;
+    return `${configured}/api`;
   }
 
   const pageHost = window.location.hostname;
 
-  // Only for LAN testing from a phone/tablet (e.g. http://192.168.1.164:3000)
-  if (isPrivateLanHost(pageHost) && isLocalApiUrl(configured)) {
-    try {
-      const u = new URL(configured);
-      u.hostname = pageHost;
-      return u.origin;
-    } catch {
-      return `http://${pageHost}:5000`;
-    }
+  // Production (any phone worldwide): use Vercel proxy → Railway
+  if (!isLocalHost(pageHost) && !isPrivateLanHost(pageHost)) {
+    return '/api/proxy';
   }
 
-  return configured;
+  // Phone on same Wi‑Fi as laptop
+  if (isPrivateLanHost(pageHost) && isLocalApiUrl(configured)) {
+    return `http://${pageHost}:5000/api`;
+  }
+
+  return `${configured}/api`;
 }
 
 const api = axios.create({
-  baseURL: `${resolveApiUrl()}/api`,
+  baseURL: resolveClientApiBase(),
   headers: { 'Content-Type': 'application/json' },
-  timeout: 30000,
+  timeout: 45000,
 });
 
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    config.baseURL = `${resolveApiUrl()}/api`;
+    config.baseURL = resolveClientApiBase();
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -82,22 +81,21 @@ export function getApiErrorMessage(err, fallback = 'Request failed') {
   if (!err) return fallback;
   if (err.code === 'ECONNABORTED') return 'Request timed out. Check your connection.';
 
+  const serverMsg = err.response?.data?.message;
+  if (serverMsg) return serverMsg;
+
   if (!err.response) {
-    const apiHost = typeof window !== 'undefined' ? resolveApiUrl() : 'API';
     const pageHost = typeof window !== 'undefined' ? window.location.hostname : '';
-
-    if (pageHost && !isLocalHost(pageHost) && !isPrivateLanHost(pageHost) && isLocalApiUrl(apiHost)) {
-      return 'Backend not configured for this site. Set NEXT_PUBLIC_API_URL on Vercel to your live API URL (Railway/Render), or use http://localhost:3000 with the backend running.';
+    if (pageHost && !isLocalHost(pageHost) && !isPrivateLanHost(pageHost)) {
+      return 'Cannot reach API. On Vercel set API_URL to your Railway URL (https://xxxx.up.railway.app) and redeploy.';
     }
-
     if (isPrivateLanHost(pageHost)) {
-      return `Cannot reach server (${apiHost}). Keep the backend running on your PC and open the app via your PC Wi‑Fi IP.`;
+      return 'Cannot reach laptop API. Keep backend running and use http://YOUR_PC_IP:3000 on the phone.';
     }
-
-    return `Cannot reach server (${apiHost}). Start the backend on port 5000, or check NEXT_PUBLIC_API_URL.`;
+    return 'Cannot reach server. Start the backend on port 5000.';
   }
 
-  return err.response?.data?.message || fallback;
+  return fallback;
 }
 
 export default api;

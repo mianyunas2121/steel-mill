@@ -139,10 +139,12 @@ export default function LoginPage() {
 
             {hostTip === 'vercel' && (
               <div className="mb-5 p-3 rounded-md border border-status-warning bg-status-warningBg text-xs text-status-warning leading-relaxed">
-                <p className="font-semibold mb-1">This Vercel site has no live backend yet</p>
+                <p className="font-semibold mb-1">Connect Railway to finish mobile login</p>
                 <p>
-                  On your phone, do <strong>not</strong> use this link. Open your laptop&apos;s Wi‑Fi address instead
-                  (same Wi‑Fi): <span className="tabular-nums font-semibold">http://192.168.1.164:3000</span>
+                  On Vercel → Settings → Environment Variables, set{' '}
+                  <span className="font-semibold">API_URL</span> to your Railway public URL (e.g.{' '}
+                  <span className="tabular-nums">https://xxxx.up.railway.app</span>), then Redeploy.
+                  Phones will then work on this site.
                 </p>
               </div>
             )}
