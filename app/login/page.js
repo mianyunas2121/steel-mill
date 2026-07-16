@@ -138,14 +138,8 @@ export default function LoginPage() {
             <p className="text-ink-subtle text-sm mb-6">Enter your staff credentials to continue</p>
 
             {hostTip === 'vercel' && (
-              <div className="mb-5 p-3 rounded-md border border-status-warning bg-status-warningBg text-xs text-status-warning leading-relaxed">
-                <p className="font-semibold mb-1">Connect Railway to finish mobile login</p>
-                <p>
-                  On Vercel → Settings → Environment Variables, set{' '}
-                  <span className="font-semibold">API_URL</span> to your Railway public URL (e.g.{' '}
-                  <span className="tabular-nums">https://xxxx.up.railway.app</span>), then Redeploy.
-                  Phones will then work on this site.
-                </p>
+              <div className="mb-5 p-3 rounded-md border border-status-success bg-status-successBg text-xs text-status-success leading-relaxed">
+                Live cloud login — this site connects to the Railway API. Works from any phone with internet.
               </div>
             )}
             {hostTip === 'localhost' && (
