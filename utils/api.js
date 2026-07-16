@@ -1,9 +1,26 @@
 import axios from 'axios';
 
+function isLocalHost(hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
+function isPrivateLanHost(hostname) {
+  return (
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+  );
+}
+
+function isLocalApiUrl(url) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(url);
+}
+
 /**
- * Resolve API base URL for desktop, LAN mobile, and production.
- * On a phone, "localhost" is the phone itself — so when the page is opened via
- * a LAN IP (e.g. http://192.168.1.10:3000), we call the API on that same host:5000.
+ * Resolve API base URL.
+ * - Local / Vercel: use NEXT_PUBLIC_API_URL as-is (default http://localhost:5000)
+ * - Phone on Wi‑Fi via LAN IP only: rewrite localhost → that IP so the phone hits the PC
+ * Never rewrite production hosts like *.vercel.app
  */
 function resolveApiUrl() {
   const configured = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
@@ -13,16 +30,9 @@ function resolveApiUrl() {
   }
 
   const pageHost = window.location.hostname;
-  const isLocalPage =
-    pageHost === 'localhost' || pageHost === '127.0.0.1' || pageHost === '[::1]';
 
-  // Production / Vercel / custom domain: always use configured URL
-  if (!isLocalPage && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(configured)) {
-    return configured;
-  }
-
-  // Phone / tablet on same Wi‑Fi: replace localhost with the page hostname
-  if (!isLocalPage) {
+  // Only for LAN testing from a phone/tablet (e.g. http://192.168.1.164:3000)
+  if (isPrivateLanHost(pageHost) && isLocalApiUrl(configured)) {
     try {
       const u = new URL(configured);
       u.hostname = pageHost;
@@ -35,22 +45,15 @@ function resolveApiUrl() {
   return configured;
 }
 
-const API_URL = resolveApiUrl();
-
 const api = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: `${resolveApiUrl()}/api`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
 });
 
 api.interceptors.request.use((config) => {
-  // Re-resolve on each request in case hostname differs (SSR vs client)
   if (typeof window !== 'undefined') {
-    const live = resolveApiUrl();
-    config.baseURL = `${live}/api`;
-  }
-
-  if (typeof window !== 'undefined') {
+    config.baseURL = `${resolveApiUrl()}/api`;
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -78,11 +81,22 @@ api.interceptors.response.use(
 export function getApiErrorMessage(err, fallback = 'Request failed') {
   if (!err) return fallback;
   if (err.code === 'ECONNABORTED') return 'Request timed out. Check your connection.';
+
   if (!err.response) {
-    const host =
-      typeof window !== 'undefined' ? resolveApiUrl() : process.env.NEXT_PUBLIC_API_URL || 'API';
-    return `Cannot reach server (${host}). On mobile, open the app via your PC's Wi‑Fi IP and keep the backend running.`;
+    const apiHost = typeof window !== 'undefined' ? resolveApiUrl() : 'API';
+    const pageHost = typeof window !== 'undefined' ? window.location.hostname : '';
+
+    if (pageHost && !isLocalHost(pageHost) && !isPrivateLanHost(pageHost) && isLocalApiUrl(apiHost)) {
+      return 'Backend not configured for this site. Set NEXT_PUBLIC_API_URL on Vercel to your live API URL (Railway/Render), or use http://localhost:3000 with the backend running.';
+    }
+
+    if (isPrivateLanHost(pageHost)) {
+      return `Cannot reach server (${apiHost}). Keep the backend running on your PC and open the app via your PC Wi‑Fi IP.`;
+    }
+
+    return `Cannot reach server (${apiHost}). Start the backend on port 5000, or check NEXT_PUBLIC_API_URL.`;
   }
+
   return err.response?.data?.message || fallback;
 }
 
