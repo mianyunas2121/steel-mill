@@ -219,29 +219,95 @@ steel-mill-app/
 
 ## Deployment Notes
 
-### Frontend (Vercel)
+### Architecture
 
-1. Import the GitHub repo on Vercel  
-2. **Root Directory:** leave as **repository root** (Next.js is at root now — do **not** set `frontend`)  
-3. Framework: **Next.js** (auto)  
-4. Environment variable:
+```
+Any phone / PC  →  Vercel (Next.js UI)  →  Render/Railway (Express API)  →  Neon DB
+```
+
+- **Frontend:** https://steel-mill.vercel.app  
+- **Backend:** host on Render (recommended) or Railway — Vercel cannot run this Express API  
+- **Database:** Neon (already configured via `DATABASE_URL`)
+
+---
+
+### A) Deploy backend on Render (one-click Blueprint)
+
+1. Open **[https://dashboard.render.com/blueprints](https://dashboard.render.com/blueprints)**  
+2. Sign in with **GitHub** (same account as `mianyunas2121/steel-mill`)  
+3. Click **New Blueprint Instance**  
+4. Select repo **`steel-mill`** (branch `main`)  
+5. Render reads `render.yaml` → service name **`smms-api`**  
+6. When prompted for **`DATABASE_URL`**, paste your Neon connection string  
+   (Neon → Project → Connection Details → copy URI, keep `?sslmode=require`)  
+7. Click **Apply** / **Deploy**  
+8. Wait until status is **Live**  
+9. Open the service → copy the URL, e.g.  
+   `https://smms-api.onrender.com`  
+10. Test in browser: `https://smms-api.onrender.com/api/health`  
+    → should show `{ "success": true, ... }`
+
+**Manual Web Service (if you skip Blueprint):**  
+New → Web Service → GitHub `steel-mill` → Root Directory `backend` →  
+Build: `npm install && npx prisma generate` → Start: `npm start` →  
+Env: `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=production`,  
+`FRONTEND_URL=https://steel-mill.vercel.app`
+
+---
+
+### B) Point Vercel frontend at the live API
+
+1. Open **[https://vercel.com/dashboard](https://vercel.com/dashboard)**  
+2. Open project **steel-mill** (your Next.js app)  
+3. Go to **Settings** → **Environment Variables**  
+4. Add / edit:
+
+| Name | Value | Environments |
+|------|--------|----------------|
+| `NEXT_PUBLIC_API_URL` | `https://smms-api.onrender.com` | Production, Preview, Development |
+
+   (Use **your** real Render URL — no trailing slash)
+
+5. Go to **Deployments** → open the latest → **⋯** → **Redeploy**  
+   (Required so `NEXT_PUBLIC_API_URL` is baked into the build)
+
+6. After deploy finishes, open on any phone:  
+   **https://steel-mill.vercel.app**  
+   Login: `admin@steelmill.com` / `admin123`
+
+---
+
+### C) Optional: Railway instead of Render
+
+1. Open **[https://railway.app](https://railway.app)** → New Project → **Deploy from GitHub**  
+2. Select **`steel-mill`**  
+3. Set **Root Directory** to `backend`  
+4. Variables:
 
 | Name | Value |
 |------|--------|
-| `NEXT_PUBLIC_API_URL` | Your live backend URL, e.g. `https://your-api.onrender.com` |
+| `DATABASE_URL` | Neon URI |
+| `JWT_SECRET` | long random string |
+| `JWT_EXPIRES_IN` | `7d` |
+| `NODE_ENV` | `production` |
+| `FRONTEND_URL` | `https://steel-mill.vercel.app` |
 
-5. Deploy
+5. Deploy → copy public HTTPS URL  
+6. Set that URL as `NEXT_PUBLIC_API_URL` on Vercel (same as step B) and redeploy
 
-### Backend (Railway / Render)
+`backend/railway.toml` is already in the repo for build/start/healthcheck.
 
-- Root / start: `backend`  
-- Env: copy from `backend/.env.example`  
-- Must set `DATABASE_URL` (Neon) and `FRONTEND_URL` (your Vercel URL)  
-- Start: `npm start` or `node src/server.js`
+---
+
+### Notes
+
+- Free Render services **sleep** when idle; first request after sleep can take 30–60s.  
+- Never put `DATABASE_URL` or `JWT_SECRET` in Vercel public env (only `NEXT_PUBLIC_API_URL`).  
+- Local laptop Wi‑Fi login still works for development: `http://192.168.x.x:3000`.
 
 ### Database
 
-- Neon PostgreSQL via `DATABASE_URL` in backend `.env`
+- Neon PostgreSQL via `DATABASE_URL` in backend `.env` (local) and Render/Railway (production)
 
 ---
 

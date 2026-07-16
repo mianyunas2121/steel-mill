@@ -1,0 +1,16 @@
+# Railway — deploy from repo with Root Directory = backend
+# Or: Railway → New Project → Deploy from GitHub → set root to /backend
+#
+# Required variables in Railway Variables tab:
+#   DATABASE_URL, JWT_SECRET, FRONTEND_URL, NODE_ENV=production
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm install && npx prisma generate"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

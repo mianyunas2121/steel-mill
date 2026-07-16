@@ -1,0 +1,51 @@
+# Render Blueprint — one-click backend deploy
+# Docs: https://render.com/docs/blueprint-spec
+#
+# After connecting GitHub, open:
+#   https://dashboard.render.com/blueprints
+# → New Blueprint Instance → select this repo
+
+services:
+  - type: web
+    name: smms-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # Your live Next.js app on Vercel
+      - key: FRONTEND_URL
+        value: https://steel-mill.vercel.app
+      # Paste from Neon console (Dashboard → Connection string)
+      - key: DATABASE_URL
+        sync: false
+      # Auto-generated secure secret (or set your own in the dashboard)
+      - key: JWT_SECRET
+        generateValue: true
+      # Optional email (leave blank if unused)
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        value: noreply@ambikasteel.pk
+      - key: COMPANY_NAME
+        value: Ambika Steel & Scrap Yard
+      - key: COMPANY_ADDRESS
+        value: Industrial Area, Plot 12, Ring Road, Lahore, Pakistan
+      - key: COMPANY_EMAIL
+        value: office@ambikasteel.pk
+      - key: COMPANY_PHONE
+        value: "+92-42-35123456"
