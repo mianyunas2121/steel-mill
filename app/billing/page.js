@@ -13,10 +13,13 @@ import {
   getPayments,
   getSettings,
 } from '../../utils/api';
-import { formatCurrency, STATUS_COLORS } from '../../utils/helpers';
+import { formatCurrency } from '../../utils/helpers';
 import { format } from 'date-fns';
-import { Search } from 'lucide-react';
+import { Search, FileText } from 'lucide-react';
 import { useAuth } from '../../utils/auth';
+import StatusBadge from '../../components/StatusBadge';
+import EmptyState from '../../components/EmptyState';
+import { TableSkeleton } from '../../components/Skeleton';
 
 export default function BillingPage() {
   const { hasRole } = useAuth();
@@ -103,10 +106,10 @@ export default function BillingPage() {
   };
 
   return (
-    <AppLayout title="Billing & Invoices">
-      <form onSubmit={handleSearch} className="flex gap-3 mb-6">
+    <AppLayout title="Billing & Invoices" subtitle="Invoice lookup and payment recording">
+      <form onSubmit={handleSearch} className="toolbar">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-steel-400" size={16} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle" size={15} />
           <input
             className="input pl-9"
             placeholder="Search by invoice number or customer name..."
@@ -114,12 +117,16 @@ export default function BillingPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button type="submit" className="btn-primary">Search</button>
+        <button type="submit" className="btn-primary">
+          Search
+        </button>
       </form>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        <TableSkeleton rows={8} cols={8} />
+      ) : transactions.length === 0 ? (
+        <div className="card">
+          <EmptyState icon={FileText} title="No invoices found" description="Try a different search, or create a transaction first." />
         </div>
       ) : (
         <div className="table-wrap">
@@ -130,35 +137,35 @@ export default function BillingPage() {
                 <th>Date</th>
                 <th>Customer</th>
                 <th>Type</th>
-                <th>Total</th>
-                <th>Paid</th>
+                <th className="num">Total</th>
+                <th className="num">Paid</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center text-steel-400 py-8">No invoices found</td>
+              {transactions.map((t) => (
+                <tr key={t.id}>
+                  <td className="font-medium text-brand-600 tabular-nums">{t.invoiceNumber}</td>
+                  <td className="tabular-nums whitespace-nowrap">
+                    {format(new Date(t.invoiceDate), 'dd MMM yyyy')}
+                  </td>
+                  <td>{t.customer?.name}</td>
+                  <td>
+                    <StatusBadge status={t.type} />
+                  </td>
+                  <td className="num font-semibold text-ink">{formatCurrency(t.totalBill)}</td>
+                  <td className="num">{formatCurrency(t.paidAmount)}</td>
+                  <td>
+                    <StatusBadge status={t.paymentStatus} />
+                  </td>
+                  <td>
+                    <button onClick={() => openInvoice(t)} className="btn-outline btn-sm">
+                      View
+                    </button>
+                  </td>
                 </tr>
-              ) : (
-                transactions.map((t) => (
-                  <tr key={t.id}>
-                    <td className="font-medium text-accent">{t.invoiceNumber}</td>
-                    <td>{format(new Date(t.invoiceDate), 'dd MMM yyyy')}</td>
-                    <td>{t.customer?.name}</td>
-                    <td><span className={`badge ${STATUS_COLORS[t.type]}`}>{t.type}</span></td>
-                    <td>{formatCurrency(t.totalBill)}</td>
-                    <td>{formatCurrency(t.paidAmount)}</td>
-                    <td><span className={`badge ${STATUS_COLORS[t.paymentStatus]}`}>{t.paymentStatus}</span></td>
-                    <td>
-                      <button onClick={() => openInvoice(t)} className="btn-outline text-xs py-1 px-2">
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
@@ -179,16 +186,25 @@ export default function BillingPage() {
 
       <Modal open={payModal} onClose={() => setPayModal(false)} title="Record Payment">
         <form onSubmit={handleSubmit(onPayment)} className="space-y-4">
-          <div className="p-3 bg-steel-50 rounded-lg text-sm mb-2">
-            <p>Invoice: <strong>{selected?.invoiceNumber}</strong></p>
-            <p>Total: {formatCurrency(selected?.totalBill)} | Paid: {formatCurrency(selected?.paidAmount)}</p>
-            <p className="text-red-600 font-medium">
+          <div className="p-3.5 bg-surface rounded-md border border-line text-sm space-y-1">
+            <p>
+              Invoice: <strong className="tabular-nums">{selected?.invoiceNumber}</strong>
+            </p>
+            <p className="tabular-nums text-ink-muted">
+              Total: {formatCurrency(selected?.totalBill)} · Paid: {formatCurrency(selected?.paidAmount)}
+            </p>
+            <p className="text-status-danger font-semibold tabular-nums">
               Due: {formatCurrency((selected?.totalBill || 0) - (selected?.paidAmount || 0))}
             </p>
           </div>
           <div>
             <label className="label">Amount (PKR)</label>
-            <input type="number" step="0.01" className="input" {...register('amount', { required: true, min: 0.01 })} />
+            <input
+              type="number"
+              step="0.01"
+              className="input tabular-nums"
+              {...register('amount', { required: true, min: 0.01 })}
+            />
           </div>
           <div>
             <label className="label">Payment Method</label>
@@ -206,8 +222,10 @@ export default function BillingPage() {
             <label className="label">Notes</label>
             <textarea className="input" rows={2} {...register('notes')} />
           </div>
-          <div className="flex gap-3 justify-end">
-            <button type="button" onClick={() => setPayModal(false)} className="btn-outline">Cancel</button>
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => setPayModal(false)} className="btn-outline">
+              Cancel
+            </button>
             <button type="submit" disabled={submitting} className="btn-primary">
               {submitting ? 'Saving...' : 'Record Payment'}
             </button>

@@ -12,10 +12,14 @@ import {
   deleteCustomer,
   getCustomerTransactions,
 } from '../../utils/api';
-import { formatCurrency, STATUS_COLORS } from '../../utils/helpers';
+import { formatCurrency } from '../../utils/helpers';
 import { format } from 'date-fns';
-import { Plus, Search, Edit2, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Eye, Users } from 'lucide-react';
 import { useAuth } from '../../utils/auth';
+import StatusBadge from '../../components/StatusBadge';
+import EmptyState from '../../components/EmptyState';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import { TableSkeleton } from '../../components/Skeleton';
 
 export default function CustomersPage() {
   const { hasRole } = useAuth();
@@ -28,6 +32,8 @@ export default function CustomersPage() {
   const [detailTx, setDetailTx] = useState([]);
   const [toast, setToast] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -99,22 +105,26 @@ export default function CustomersPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this customer?')) return;
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
     try {
-      await deleteCustomer(id);
+      await deleteCustomer(deleteId);
       setToast({ message: 'Customer deleted', type: 'success' });
+      setDeleteId(null);
       load(search);
     } catch (err) {
       setToast({ message: err.response?.data?.message || 'Failed', type: 'error' });
+    } finally {
+      setDeleting(false);
     }
   };
 
   return (
-    <AppLayout title="Customers">
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+    <AppLayout title="Customers" subtitle="Customer accounts and receivables">
+      <div className="toolbar">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-steel-400" size={16} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle" size={15} />
           <input
             className="input pl-9"
             placeholder="Search customers..."
@@ -124,14 +134,27 @@ export default function CustomersPage() {
         </div>
         {hasRole('ADMIN', 'STAFF', 'ACCOUNTANT') && (
           <button onClick={openAdd} className="btn-primary">
-            <Plus size={16} /> Add Customer
+            <Plus size={15} /> Add Customer
           </button>
         )}
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        <TableSkeleton rows={6} cols={6} />
+      ) : customers.length === 0 ? (
+        <div className="card">
+          <EmptyState
+            icon={Users}
+            title="No customers found"
+            description="Add a customer to start recording transactions."
+            action={
+              hasRole('ADMIN', 'STAFF', 'ACCOUNTANT') ? (
+                <button onClick={openAdd} className="btn-primary btn-sm">
+                  <Plus size={14} /> Add Customer
+                </button>
+              ) : null
+            }
+          />
         </div>
       ) : (
         <div className="table-wrap">
@@ -140,71 +163,84 @@ export default function CustomersPage() {
               <tr>
                 <th>Name</th>
                 <th>Contact</th>
-                <th>Orders</th>
-                <th>Total Amount</th>
-                <th>Balance</th>
+                <th className="num">Orders</th>
+                <th className="num">Total Amount</th>
+                <th className="num">Balance</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {customers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center text-steel-400 py-8">No customers found</td>
-                </tr>
-              ) : (
-                customers.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <button onClick={() => openDetail(c)} className="font-medium text-accent hover:underline text-left">
-                        {c.name}
+              {customers.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    <button
+                      onClick={() => openDetail(c)}
+                      className="font-medium text-brand-600 hover:text-brand-700 text-left"
+                    >
+                      {c.name}
+                    </button>
+                    {c.gstNumber && (
+                      <p className="text-2xs text-ink-subtle tabular-nums mt-0.5">GST: {c.gstNumber}</p>
+                    )}
+                  </td>
+                  <td>
+                    <p className="tabular-nums">{c.contactNumber || '—'}</p>
+                    <p className="text-2xs text-ink-subtle">{c.email || ''}</p>
+                  </td>
+                  <td className="num">{c.totalOrders || 0}</td>
+                  <td className="num">{formatCurrency(c.totalAmount || 0)}</td>
+                  <td className={`num font-medium ${c.balance > 0 ? 'text-status-danger' : ''}`}>
+                    {formatCurrency(c.balance)}
+                  </td>
+                  <td>
+                    <div className="flex gap-0.5">
+                      <button onClick={() => openDetail(c)} className="btn-ghost p-1.5" title="View">
+                        <Eye size={15} />
                       </button>
-                      {c.gstNumber && <p className="text-xs text-steel-400">GST: {c.gstNumber}</p>}
-                    </td>
-                    <td>
-                      <p>{c.contactNumber || '—'}</p>
-                      <p className="text-xs text-steel-400">{c.email || ''}</p>
-                    </td>
-                    <td>{c.totalOrders || 0}</td>
-                    <td>{formatCurrency(c.totalAmount || 0)}</td>
-                    <td className={c.balance > 0 ? 'text-red-600 font-medium' : ''}>
-                      {formatCurrency(c.balance)}
-                    </td>
-                    <td>
-                      <div className="flex gap-1">
-                        <button onClick={() => openDetail(c)} className="btn-ghost p-1.5" title="View">
-                          <Eye size={16} />
+                      {hasRole('ADMIN', 'STAFF', 'ACCOUNTANT') && (
+                        <button onClick={() => openEdit(c)} className="btn-ghost p-1.5" title="Edit">
+                          <Edit2 size={15} />
                         </button>
-                        {hasRole('ADMIN', 'STAFF', 'ACCOUNTANT') && (
-                          <button onClick={() => openEdit(c)} className="btn-ghost p-1.5" title="Edit">
-                            <Edit2 size={16} />
-                          </button>
-                        )}
-                        {hasRole('ADMIN') && (
-                          <button onClick={() => handleDelete(c.id)} className="btn-ghost p-1.5 text-red-500" title="Delete">
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+                      )}
+                      {hasRole('ADMIN') && (
+                        <button
+                          onClick={() => setDeleteId(c.id)}
+                          className="btn-ghost p-1.5 text-status-danger"
+                          title="Delete"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        title="Delete customer"
+        message="This will soft-delete the customer. Historical transactions are retained. Continue?"
+        confirmLabel="Delete"
+        loading={deleting}
+      />
 
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit Customer' : 'Add Customer'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="label">Name *</label>
             <input className="input" {...register('name', { required: 'Name is required', minLength: 2 })} />
-            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+            {errors.name && <p className="field-error">{errors.name.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Contact Number</label>
-              <input className="input" {...register('contactNumber')} />
+              <input className="input tabular-nums" {...register('contactNumber')} />
             </div>
             <div>
               <label className="label">Email</label>
@@ -218,11 +254,11 @@ export default function CustomersPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">GST Number</label>
-              <input className="input" {...register('gstNumber')} />
+              <input className="input tabular-nums" {...register('gstNumber')} />
             </div>
             <div>
               <label className="label">Tax ID</label>
-              <input className="input" {...register('taxId')} />
+              <input className="input tabular-nums" {...register('taxId')} />
             </div>
           </div>
           <div className="flex gap-3 justify-end">
@@ -237,26 +273,28 @@ export default function CustomersPage() {
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.name || 'Customer'} size="xl">
         {detail && (
           <div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <div className="p-3 bg-steel-50 rounded-lg">
-                <p className="text-xs text-steel-400">Contact</p>
-                <p className="text-sm font-medium">{detail.contactNumber || '—'}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+              <div className="p-3 bg-surface rounded-md border border-line">
+                <p className="text-2xs text-ink-subtle uppercase tracking-wider">Contact</p>
+                <p className="text-sm font-medium tabular-nums mt-1">{detail.contactNumber || '—'}</p>
               </div>
-              <div className="p-3 bg-steel-50 rounded-lg">
-                <p className="text-xs text-steel-400">Email</p>
-                <p className="text-sm font-medium truncate">{detail.email || '—'}</p>
+              <div className="p-3 bg-surface rounded-md border border-line">
+                <p className="text-2xs text-ink-subtle uppercase tracking-wider">Email</p>
+                <p className="text-sm font-medium truncate mt-1">{detail.email || '—'}</p>
               </div>
-              <div className="p-3 bg-steel-50 rounded-lg">
-                <p className="text-xs text-steel-400">Orders</p>
-                <p className="text-sm font-medium">{detail.totalOrders || detailTx.length}</p>
+              <div className="p-3 bg-surface rounded-md border border-line">
+                <p className="text-2xs text-ink-subtle uppercase tracking-wider">Orders</p>
+                <p className="text-sm font-semibold tabular-nums mt-1">{detail.totalOrders || detailTx.length}</p>
               </div>
-              <div className="p-3 bg-steel-50 rounded-lg">
-                <p className="text-xs text-steel-400">Balance</p>
-                <p className="text-sm font-medium text-red-600">{formatCurrency(detail.balance)}</p>
+              <div className="p-3 bg-surface rounded-md border border-line">
+                <p className="text-2xs text-ink-subtle uppercase tracking-wider">Balance</p>
+                <p className="text-sm font-semibold tabular-nums text-status-danger mt-1">
+                  {formatCurrency(detail.balance)}
+                </p>
               </div>
             </div>
-            {detail.address && <p className="text-sm text-steel-500 mb-4">{detail.address}</p>}
-            <h4 className="font-medium mb-3">Transaction History</h4>
+            {detail.address && <p className="text-sm text-ink-muted mb-4">{detail.address}</p>}
+            <h4 className="section-title mb-3">Transaction History</h4>
             <div className="table-wrap max-h-80 overflow-y-auto">
               <table className="data-table">
                 <thead>
@@ -265,22 +303,32 @@ export default function CustomersPage() {
                     <th>Date</th>
                     <th>Type</th>
                     <th>Material</th>
-                    <th>Amount</th>
+                    <th className="num">Amount</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {detailTx.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center text-steel-400 py-4">No transactions</td></tr>
+                    <tr>
+                      <td colSpan={6} className="text-center text-ink-subtle py-6">
+                        No transactions
+                      </td>
+                    </tr>
                   ) : (
                     detailTx.map((t) => (
                       <tr key={t.id}>
-                        <td className="text-accent">{t.invoiceNumber}</td>
-                        <td>{format(new Date(t.invoiceDate), 'dd MMM yyyy')}</td>
-                        <td><span className={`badge ${STATUS_COLORS[t.type]}`}>{t.type}</span></td>
+                        <td className="text-brand-600 tabular-nums">{t.invoiceNumber}</td>
+                        <td className="tabular-nums whitespace-nowrap">
+                          {format(new Date(t.invoiceDate), 'dd MMM yyyy')}
+                        </td>
+                        <td>
+                          <StatusBadge status={t.type} />
+                        </td>
                         <td>{t.materialType}</td>
-                        <td>{formatCurrency(t.totalBill)}</td>
-                        <td><span className={`badge ${STATUS_COLORS[t.paymentStatus]}`}>{t.paymentStatus}</span></td>
+                        <td className="num">{formatCurrency(t.totalBill)}</td>
+                        <td>
+                          <StatusBadge status={t.paymentStatus} />
+                        </td>
                       </tr>
                     ))
                   )}

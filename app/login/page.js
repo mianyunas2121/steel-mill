@@ -7,6 +7,7 @@ import { login } from '../../utils/api';
 import { useAuth } from '../../utils/auth';
 import { Factory, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import Toast from '../../components/Toast';
+import { PageLoader } from '../../components/Skeleton';
 
 export default function LoginPage() {
   const { loginUser, isAuthenticated, loading } = useAuth();
@@ -53,52 +54,53 @@ export default function LoginPage() {
 
   if (!mounted || loading || isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-steel-100">
-        <div className="w-9 h-9 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <PageLoader />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-steel-100">
-      <div className="hidden lg:flex lg:w-[48%] relative bg-steel-900 overflow-hidden">
+    <div className="min-h-screen flex bg-surface">
+      <div className="hidden lg:flex lg:w-[46%] relative bg-steel-900 overflow-hidden">
         <div
           className="absolute inset-0"
           style={{
             backgroundImage:
-              'radial-gradient(ellipse at 20% 20%, rgba(15,118,110,0.35) 0%, transparent 45%), linear-gradient(160deg, #0f172a 0%, #1e293b 100%)',
+              'radial-gradient(ellipse at 15% 10%, rgba(30,64,175,0.45) 0%, transparent 50%), linear-gradient(165deg, #0f172a 0%, #1e293b 55%, #172554 100%)',
           }}
         />
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.035]"
           style={{
             backgroundImage:
-              'repeating-linear-gradient(90deg, #fff 0, #fff 1px, transparent 1px, transparent 48px), repeating-linear-gradient(0deg, #fff 0, #fff 1px, transparent 1px, transparent 48px)',
+              'repeating-linear-gradient(90deg, #fff 0, #fff 1px, transparent 1px, transparent 40px), repeating-linear-gradient(0deg, #fff 0, #fff 1px, transparent 1px, transparent 40px)',
           }}
         />
-        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+        <div className="relative z-10 flex flex-col justify-between p-10 xl:p-12 w-full">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-md bg-accent flex items-center justify-center">
+            <div className="w-10 h-10 rounded-md bg-brand-600 flex items-center justify-center shadow-xs">
               <Factory className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-white font-semibold text-lg tracking-tight">SMMS</h1>
-              <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em]">Steel Mill Management</p>
+              <h1 className="text-white font-semibold text-base tracking-tight">SMMS</h1>
+              <p className="text-2xs text-slate-400 uppercase tracking-[0.16em]">Steel Mill Management</p>
             </div>
           </div>
 
           <div className="max-w-md">
-            <p className="text-accent-light text-xs font-semibold uppercase tracking-[0.18em] mb-3">
-              Enterprise Operations
+            <p className="text-brand-300 text-2xs font-semibold uppercase tracking-[0.16em] mb-3">
+              Enterprise Operations Platform
             </p>
-            <h2 className="font-display text-4xl text-white leading-tight mb-4">
-              Inventory, billing &amp; control — in one workspace
+            <h2 className="text-3xl xl:text-4xl text-white font-semibold leading-tight tracking-tight mb-4">
+              Production control for steel mill operations
             </h2>
-            <p className="text-slate-300 text-base leading-relaxed">
-              Track incoming and outgoing material, apply waste rules accurately, and manage receivables in PKR.
+            <p className="text-slate-300 text-sm leading-relaxed">
+              Inventory, weighbridge transactions, waste billing, receivables, and reports — built for plant
+              supervisors and commercial staff.
             </p>
             <div className="mt-8 flex items-center gap-2 text-slate-400 text-sm">
-              <ShieldCheck size={16} className="text-accent-light" />
+              <ShieldCheck size={16} className="text-brand-300" />
               Role-based access · Secure JWT sessions
             </div>
           </div>
@@ -110,34 +112,35 @@ export default function LoginPage() {
       </div>
 
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-[420px]">
+        <div className="w-full max-w-[400px]">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-md bg-accent flex items-center justify-center">
-              <Factory className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 rounded-md bg-brand-600 flex items-center justify-center">
+              <Factory className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="font-semibold text-steel-900">SMMS</h1>
-              <p className="text-[10px] text-steel-400 uppercase tracking-widest">Operations</p>
+              <h1 className="font-semibold text-ink text-sm">SMMS</h1>
+              <p className="text-2xs text-ink-subtle uppercase tracking-widest">Operations</p>
             </div>
           </div>
 
-          <div className="card p-7 sm:p-8">
-            <h2 className="font-display text-2xl text-steel-900 mb-1">Sign in</h2>
-            <p className="text-steel-500 text-sm mb-7">Use your staff credentials to access the system</p>
+          <div className="card p-6 sm:p-7">
+            <h2 className="text-xl font-semibold text-ink tracking-tight mb-1">Sign in</h2>
+            <p className="text-ink-subtle text-sm mb-6">Enter your staff credentials to continue</p>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <label className="label">Email address</label>
                 <input
                   type="email"
-                  className="input"
+                  className={`input ${errors.email ? 'input-error' : ''}`}
                   placeholder="admin@steelmill.com"
+                  autoComplete="username"
                   {...register('email', {
                     required: 'Email is required',
                     pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' },
                   })}
                 />
-                {errors.email && <p className="text-rose-600 text-xs mt-1.5">{errors.email.message}</p>}
+                {errors.email && <p className="field-error">{errors.email.message}</p>}
               </div>
 
               <div>
@@ -145,31 +148,33 @@ export default function LoginPage() {
                 <div className="relative">
                   <input
                     type={showPass ? 'text' : 'password'}
-                    className="input pr-10"
+                    className={`input pr-10 ${errors.password ? 'input-error' : ''}`}
                     placeholder="Enter password"
+                    autoComplete="current-password"
                     {...register('password', { required: 'Password is required' })}
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-steel-400 hover:text-steel-600"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-ink-subtle hover:text-ink transition-colors"
                     onClick={() => setShowPass(!showPass)}
+                    aria-label={showPass ? 'Hide password' : 'Show password'}
                   >
-                    {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                {errors.password && <p className="text-rose-600 text-xs mt-1.5">{errors.password.message}</p>}
+                {errors.password && <p className="field-error">{errors.password.message}</p>}
               </div>
 
-              <button type="submit" disabled={submitting} className="btn-primary w-full py-3 mt-1">
-                {submitting ? 'Authenticating...' : 'Sign in to workspace'}
+              <button type="submit" disabled={submitting} className="btn-primary w-full py-2.5 mt-1">
+                {submitting ? 'Authenticating...' : 'Sign in'}
               </button>
             </form>
           </div>
 
-          <div className="mt-5 p-4 rounded-md border border-steel-200 bg-white text-xs text-steel-500 space-y-1">
-            <p className="font-semibold text-steel-600 mb-1.5">Demo access</p>
-            <p>Admin — admin@steelmill.com / admin123</p>
-            <p>Staff — staff@steelmill.com / staff123</p>
+          <div className="mt-4 p-3.5 rounded-md border border-line bg-surface-raised text-xs text-ink-subtle space-y-1">
+            <p className="font-semibold text-ink-muted mb-1.5 text-2xs uppercase tracking-wider">Demo access</p>
+            <p className="tabular-nums">Admin — admin@steelmill.com / admin123</p>
+            <p className="tabular-nums">Staff — staff@steelmill.com / staff123</p>
           </div>
         </div>
       </div>

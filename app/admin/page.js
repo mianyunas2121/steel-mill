@@ -19,9 +19,12 @@ import {
   updateSettings,
   exportAllData,
 } from '../../utils/api';
-import { formatCurrency, ROLE_LABELS, STATUS_COLORS } from '../../utils/helpers';
+import { formatCurrency, ROLE_LABELS } from '../../utils/helpers';
 import { format } from 'date-fns';
 import { Plus, Edit2, Trash2, Key, Download } from 'lucide-react';
+import StatusBadge from '../../components/StatusBadge';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import MetricValue from '../../components/MetricValue';
 
 export default function AdminPage() {
   const { hasRole } = useAuth();
@@ -34,6 +37,8 @@ export default function AdminPage() {
   const [editing, setEditing] = useState(null);
   const [toast, setToast] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const userForm = useForm();
   const priceForm = useForm();
@@ -94,14 +99,18 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteUser = async (id) => {
-    if (!confirm('Deactivate this user?')) return;
+  const handleDeleteUser = async () => {
+    if (!deleteUserId) return;
+    setDeleting(true);
     try {
-      await deleteUser(id);
+      await deleteUser(deleteUserId);
       setToast({ message: 'User deactivated', type: 'success' });
+      setDeleteUserId(null);
       loadAll();
     } catch (err) {
       setToast({ message: err.response?.data?.message || 'Failed', type: 'error' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -182,14 +191,14 @@ export default function AdminPage() {
   ];
 
   return (
-    <AppLayout title="Admin Panel">
-      <div className="flex gap-1 bg-steel-100 p-1 rounded-lg w-fit mb-6">
+    <AppLayout title="Administration" subtitle="Users, pricing, and company settings">
+      <div className="flex gap-0.5 bg-surface-sunken p-1 rounded-md border border-line w-fit mb-5">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === t.id ? 'bg-white text-steel-900 shadow-sm' : 'text-steel-500'
+            className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+              tab === t.id ? 'bg-surface-raised text-ink shadow-xs' : 'text-ink-subtle hover:text-ink'
             }`}
           >
             {t.label}
@@ -199,8 +208,10 @@ export default function AdminPage() {
 
       {tab === 'users' && (
         <>
-          <div className="flex justify-end mb-4">
-            <button onClick={openAddUser} className="btn-primary"><Plus size={16} /> Add User</button>
+          <div className="flex justify-end mb-3">
+            <button onClick={openAddUser} className="btn-primary">
+              <Plus size={15} /> Add User
+            </button>
           </div>
           <div className="table-wrap">
             <table className="data-table">
@@ -217,23 +228,39 @@ export default function AdminPage() {
               <tbody>
                 {users.map((u) => (
                   <tr key={u.id}>
-                    <td className="font-medium">{u.name}</td>
-                    <td>{u.email}</td>
-                    <td><span className="badge bg-steel-100 text-steel-700">{ROLE_LABELS[u.role]}</span></td>
-                    <td><span className={`badge ${STATUS_COLORS[u.status]}`}>{u.status}</span></td>
-                    <td>{format(new Date(u.createdAt), 'dd MMM yyyy')}</td>
+                    <td className="font-medium text-ink">{u.name}</td>
+                    <td className="text-ink-muted">{u.email}</td>
                     <td>
-                      <div className="flex gap-1">
-                        <button onClick={() => openEditUser(u)} className="btn-ghost p-1.5"><Edit2 size={16} /></button>
+                      <StatusBadge status="INACTIVE" label={ROLE_LABELS[u.role]} variant="neutral" />
+                    </td>
+                    <td>
+                      <StatusBadge status={u.status} />
+                    </td>
+                    <td className="tabular-nums whitespace-nowrap">
+                      {format(new Date(u.createdAt), 'dd MMM yyyy')}
+                    </td>
+                    <td>
+                      <div className="flex gap-0.5">
+                        <button onClick={() => openEditUser(u)} className="btn-ghost p-1.5" title="Edit">
+                          <Edit2 size={15} />
+                        </button>
                         <button
-                          onClick={() => { setEditing(u); resetForm.reset(); setModal('reset'); }}
+                          onClick={() => {
+                            setEditing(u);
+                            resetForm.reset();
+                            setModal('reset');
+                          }}
                           className="btn-ghost p-1.5"
                           title="Reset Password"
                         >
-                          <Key size={16} />
+                          <Key size={15} />
                         </button>
-                        <button onClick={() => handleDeleteUser(u.id)} className="btn-ghost p-1.5 text-red-500">
-                          <Trash2 size={16} />
+                        <button
+                          onClick={() => setDeleteUserId(u.id)}
+                          className="btn-ghost p-1.5 text-status-danger"
+                          title="Deactivate"
+                        >
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </td>
@@ -247,31 +274,45 @@ export default function AdminPage() {
 
       {tab === 'pricing' && (
         <>
-          <div className="flex justify-between mb-4">
-            <p className="text-sm text-steel-500">Current & historical material pricing</p>
+          <div className="toolbar">
+            <p className="text-sm text-ink-subtle">Current & historical material pricing</p>
             <button
-              onClick={() => { priceForm.reset({ materialType: '', pricePerKG: '', validFrom: format(new Date(), 'yyyy-MM-dd') }); setModal('pricing'); }}
+              onClick={() => {
+                priceForm.reset({
+                  materialType: '',
+                  pricePerKG: '',
+                  validFrom: format(new Date(), 'yyyy-MM-dd'),
+                });
+                setModal('pricing');
+              }}
               className="btn-primary"
             >
-              <Plus size={16} /> Set Price
+              <Plus size={15} /> Set Price
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
             {Object.values(currentPrices).map((p) => (
               <div key={p.id} className="card p-4">
-                <p className="text-sm text-steel-500">{p.materialType}</p>
-                <p className="text-2xl font-semibold">{formatCurrency(p.pricePerKG)}<span className="text-sm font-normal text-steel-400">/KG</span></p>
-                <p className="text-xs text-steel-400 mt-1">Since {format(new Date(p.validFrom), 'dd MMM yyyy')}</p>
+                <p className="text-2xs text-ink-subtle uppercase tracking-wider">{p.materialType}</p>
+                <MetricValue
+                  value={formatCurrency(p.pricePerKG)}
+                  unit="/KG"
+                  size="lg"
+                  className="mt-1 block"
+                />
+                <p className="text-2xs text-ink-subtle mt-2 tabular-nums">
+                  Since {format(new Date(p.validFrom), 'dd MMM yyyy')}
+                </p>
               </div>
             ))}
           </div>
-          <h3 className="font-medium mb-3">Price History</h3>
+          <h3 className="section-title mb-3">Price History</h3>
           <div className="table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
                   <th>Material</th>
-                  <th>Price/KG</th>
+                  <th className="num">Price/KG</th>
                   <th>Valid From</th>
                   <th>Valid To</th>
                 </tr>
@@ -280,9 +321,13 @@ export default function AdminPage() {
                 {pricing.map((p) => (
                   <tr key={p.id}>
                     <td>{p.materialType}</td>
-                    <td className="font-medium">{formatCurrency(p.pricePerKG)}</td>
-                    <td>{format(new Date(p.validFrom), 'dd MMM yyyy')}</td>
-                    <td>{p.validTo ? format(new Date(p.validTo), 'dd MMM yyyy') : 'Current'}</td>
+                    <td className="num font-semibold">{formatCurrency(p.pricePerKG)}</td>
+                    <td className="tabular-nums whitespace-nowrap">
+                      {format(new Date(p.validFrom), 'dd MMM yyyy')}
+                    </td>
+                    <td className="tabular-nums whitespace-nowrap">
+                      {p.validTo ? format(new Date(p.validTo), 'dd MMM yyyy') : 'Current'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -293,8 +338,8 @@ export default function AdminPage() {
 
       {tab === 'settings' && (
         <form onSubmit={settingsForm.handleSubmit(onSettingsSubmit)} className="max-w-2xl space-y-6">
-          <div className="card p-6 space-y-4">
-            <h3 className="font-medium text-steel-800">Company Details</h3>
+          <div className="card p-5 space-y-4">
+            <h3 className="section-title">Company Details</h3>
             <div>
               <label className="label">Company Name</label>
               <input className="input" {...settingsForm.register('companyName')} />
@@ -431,6 +476,16 @@ export default function AdminPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteUserId}
+        onClose={() => setDeleteUserId(null)}
+        onConfirm={handleDeleteUser}
+        title="Deactivate user"
+        message="This will deactivate the user account. They will no longer be able to sign in. Continue?"
+        confirmLabel="Deactivate"
+        loading={deleting}
+      />
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </AppLayout>

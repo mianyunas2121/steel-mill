@@ -69,12 +69,13 @@ export const ROLE_LABELS = {
   VIEWER: 'Viewer',
 };
 
+/** @deprecated Prefer <StatusBadge status={...} /> — kept for compatibility */
 export const STATUS_COLORS = {
-  PAID: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20',
-  PARTIAL: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20',
-  PENDING: 'bg-rose-50 text-rose-700 ring-1 ring-rose-600/20',
-  ACTIVE: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20',
-  INACTIVE: 'bg-slate-100 text-slate-600 ring-1 ring-slate-500/10',
-  INCOMING: 'bg-sky-50 text-sky-700 ring-1 ring-sky-600/20',
-  OUTGOING: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20',
+  PAID: 'bg-status-successBg text-status-success',
+  PARTIAL: 'bg-status-warningBg text-status-warning',
+  PENDING: 'bg-status-dangerBg text-status-danger',
+  ACTIVE: 'bg-status-successBg text-status-success',
+  INACTIVE: 'bg-surface-sunken text-ink-muted',
+  INCOMING: 'bg-status-infoBg text-status-info',
+  OUTGOING: 'bg-brand-50 text-brand-700 dark:bg-brand-900 dark:text-brand-300',
 };
